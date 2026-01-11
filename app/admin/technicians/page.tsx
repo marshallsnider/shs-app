@@ -28,7 +28,7 @@ export default async function TechniciansPage() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {technicians.map((tech: Technician) => (
+                {technicians.map((tech: Technician) => ( /* Force Update */
                     <Card key={tech.id} className="flex items-center justify-between p-4">
                         <div className="flex items-center gap-4">
                             <div className="w-12 h-12 rounded-full bg-gradient-to-br from-slate-700 to-slate-800 flex items-center justify-center text-lg font-bold text-white border border-white/10">
