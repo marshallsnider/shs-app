@@ -4,7 +4,7 @@ import { Plus } from "lucide-react";
 import { createTechnician } from "../../actions"; // Adjust import path
 
 export default async function TechniciansPage() {
-    const technicians = await prisma.technician.findMany();
+    const technicians = (await prisma.technician.findMany()) || [];
 
     return (
         <div>
