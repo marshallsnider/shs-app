@@ -29,7 +29,7 @@ export type ComplianceRecord = {
     drugScreening: boolean;
     noOshaViolations: boolean;
     paceTraining: boolean;
-    [key: string]: boolean | string | undefined; // Index signature for easier checking
+    [key: string]: boolean | string | undefined | null; // Index signature for easier checking
 };
 
 export function calculateBaseBonus(weeklyRevenue: number): number {
