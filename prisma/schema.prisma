@@ -1,0 +1,105 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Technician {
+  id          String   @id @default(uuid())
+  name        String
+  email       String?  @unique
+  avatar      String?  // Initials or image URL
+  employeeId  String?  @unique
+  startDate   DateTime @default(now())
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Gamification
+  currentStreak Int      @default(0) // Consecutive compliant weeks
+  details       String?  // JSON for extra stats if needed
+  
+  performances WeeklyPerformance[]
+  badges       TechnicianBadge[]
+}
+
+model Badge {
+  id          String   @id @default(uuid())
+  code        String   @unique // e.g. "FIRST_STEPS"
+  name        String
+  description String
+  icon        String   // Lucide icon name or emoji
+  
+  technicians TechnicianBadge[]
+}
+
+model TechnicianBadge {
+  id           String     @id @default(uuid())
+  technicianId String
+  technician   Technician @relation(fields: [technicianId], references: [id], onDelete: Cascade)
+  badgeId      String
+  badge        Badge      @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+  
+  earnedAt     DateTime   @default(now())
+
+  @@unique([technicianId, badgeId])
+}
+
+model WeeklyPerformance {
+  id            String   @id @default(uuid())
+  technicianId  String
+  technician    Technician @relation(fields: [technicianId], references: [id], onDelete: Cascade)
+  
+  year          Int
+  weekNumber    Int      // 1-52
+  quarter       Int      // 1-4
+  startDate     DateTime
+  endDate       DateTime
+  
+  // Revenue Metrics
+  totalRevenue  Float    @default(0)
+  revenueGoal   Float    @default(6500) // User-settable goal
+  jobsCompleted Int      @default(0)
+  
+  // SPIFs
+  reviews       Int      @default(0)
+  memberships   Int      @default(0)
+  
+  // Compliance Link
+  compliance    ComplianceRecord?
+  
+  // Snapshots (calculated values stored for history)
+  baseBonus     Float    @default(0)
+  spifBonus     Float    @default(0)
+  totalBonus    Float    @default(0)
+  isCompliant   Boolean  @default(false)
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([technicianId, year, weekNumber])
+}
+
+model ComplianceRecord {
+  id                   String            @id @default(uuid())
+  weeklyPerformanceId  String            @unique
+  weeklyPerformance    WeeklyPerformance @relation(fields: [weeklyPerformanceId], references: [id], onDelete: Cascade)
+  
+  vanCleanliness       Boolean @default(false)
+  paperworkSubmitted   Boolean @default(false)
+  estimateFollowups    Boolean @default(false)
+  zeroCallbacks        Boolean @default(false)
+  noComplaints         Boolean @default(false)
+  noBadDriving         Boolean @default(false)
+  drugScreening        Boolean @default(false)
+  noOshaViolations     Boolean @default(false)
+  paceTraining         Boolean @default(false)
+  
+  notes                String?
+}

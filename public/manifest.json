@@ -1,0 +1,16 @@
+{
+    "name": "Safety Home Services Tracker",
+    "short_name": "SHS Tracker",
+    "description": "Technician performance tracking application for Safety Home Services",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#0f172a",
+    "theme_color": "#1a365d",
+    "icons": [
+        {
+            "src": "/icon.png",
+            "sizes": "192x192 512x512",
+            "type": "image/png"
+        }
+    ]
+}
