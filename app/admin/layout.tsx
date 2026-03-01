@@ -24,7 +24,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                     <NavLink href="/admin" icon={LayoutDashboard} label="Dashboard" />
                     <NavLink href="/admin/technicians" icon={Users} label="Technicians" />
                     <NavLink href="/admin/data-entry" icon={Database} label="Data Entry" />
-                    <NavLink href="/api/reports" icon={FileBarChart} label="Reports" external />
+                    <NavLink href="/admin/reports" icon={FileBarChart} label="Reports" />
                 </nav>
 
                 <div className="p-4 border-t border-white/5">

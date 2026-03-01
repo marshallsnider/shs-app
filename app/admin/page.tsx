@@ -2,10 +2,12 @@ import prisma from "@/lib/db";
 import { Card } from "@/components/ui/Card";
 import { Users, DollarSign, Award, AlertTriangle, FileText } from "lucide-react";
 import { SyncButton } from "@/components/admin/SyncButton";
+import { WeekPicker } from "@/components/admin/WeekPicker";
 
 export const dynamic = 'force-dynamic';
 
-export default async function AdminDashboard() {
+export default async function AdminDashboard({ searchParams }: { searchParams: Promise<{ year?: string; week?: string }> }) {
+    const params = await searchParams;
     // 1. Determine Current Week (Simplistic approx for now, ideally reliable lib)
     const now = new Date();
     // Getting week number - reusing logic or just filtering by recent date is better for aggregation?
@@ -17,8 +19,12 @@ export default async function AdminDashboard() {
         orderBy: { startDate: 'desc' }
     });
 
-    const currentYear = latestPerf?.year || now.getFullYear();
-    const currentWeek = latestPerf?.weekNumber || getWeekNumber(now);
+    const latestYear = latestPerf?.year || now.getFullYear();
+    const latestWeek = latestPerf?.weekNumber || getWeekNumber(now);
+
+    // Allow searchParams to override displayed week
+    const currentYear = params.year ? parseInt(params.year) : latestYear;
+    const currentWeek = params.week ? parseInt(params.week) : latestWeek;
 
     // Fetch all performance records for this week
     const weeklyData = await prisma.weeklyPerformance.findMany({
@@ -70,9 +76,7 @@ export default async function AdminDashboard() {
                         <FileText className="w-4 h-4" />
                         Weekly Report
                     </a>
-                    <div className="text-sm text-slate-400 bg-white/5 px-3 py-1 rounded-full">
-                        Week {currentWeek}, {currentYear}
-                    </div>
+                    <WeekPicker currentYear={latestYear} currentWeek={latestWeek} />
                 </div>
             </div>
 
