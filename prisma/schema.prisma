@@ -75,10 +75,12 @@ model WeeklyPerformance {
   compliance    ComplianceRecord?
   
   // Snapshots (calculated values stored for history)
-  baseBonus     Float    @default(0)
-  spifBonus     Float    @default(0)
-  totalBonus    Float    @default(0)
-  isCompliant   Boolean  @default(false)
+  baseBonus       Float    @default(0)
+  spifBonus       Float    @default(0)
+  totalBonus      Float    @default(0)
+  isCompliant     Boolean  @default(false)
+  infractionCount Int      @default(0)
+  deductions      Float    @default(0)
   
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -100,6 +102,7 @@ model ComplianceRecord {
   drugScreening        Boolean @default(false)
   noOshaViolations     Boolean @default(false)
   paceTraining         Boolean @default(false)
+  dressCode            Boolean @default(false)
   
   notes                String?
 }

@@ -1,8 +1,9 @@
 import prisma from "@/lib/db";
 import { Card } from "@/components/ui/Card";
 import { Plus } from "lucide-react";
-import { createTechnician } from "../../actions"; // Adjust import path
-import { Technician } from "@prisma/client"; //
+import { createTechnician } from "../../actions";
+import { Technician } from "@prisma/client";
+import { EditTechButton } from "@/components/admin/EditTechButton";
 export default async function TechniciansPage() {
     const technicians = (await prisma.technician.findMany()) || [];
 
@@ -36,14 +37,19 @@ export default async function TechniciansPage() {
                             </div>
                             <div>
                                 <h3 className="font-bold text-white">{tech.name}</h3>
-                                <p className="text-xs text-slate-500">Started {tech.startDate.toLocaleDateString()}</p>
-                                <div className={`mt-1 inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold ${tech.isActive ? 'bg-success/20 text-success' : 'bg-slate-700 text-slate-400'}`}>
-                                    {tech.isActive ? 'ACTIVE' : 'INACTIVE'}
+                                <p className="text-xs text-slate-500 font-mono bg-white/5 px-1 py-0.5 rounded inline-block my-1 select-all hover:bg-white/10 cursor-pointer" title="Employee ID (Login)">
+                                    {tech.employeeId || 'NO-ID'}
+                                </p>
+                                <div className={`flex items-center gap-2 mt-1`}>
+                                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold ${tech.isActive ? 'bg-success/20 text-success' : 'bg-slate-700 text-slate-400'}`}>
+                                        {tech.isActive ? 'ACTIVE' : 'INACTIVE'}
+                                    </span>
+                                    <span className="text-[10px] text-slate-500">Joined {tech.startDate.toLocaleDateString()}</span>
                                 </div>
                             </div>
                         </div>
 
-                        <button className="text-slate-400 hover:text-white text-sm">Edit</button>
+                        <EditTechButton tech={{ id: tech.id, name: tech.name, employeeId: tech.employeeId, isActive: tech.isActive }} />
                     </Card>
                 ))}
 

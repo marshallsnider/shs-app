@@ -1,14 +1,19 @@
 'use client';
 
-import { useState } from "react";
+import { useState, useTransition, useRef } from "react";
 import { Card } from "@/components/ui/Card";
 import { submitWeeklyPerformance } from "../../actions";
 import { calculateTotalBonus, ComplianceRecord } from "@/lib/engine";
+import { CheckCircle2 } from "lucide-react";
 
 export function DataEntryForm({ technicians }: { technicians: any[] }) {
     const [revenue, setRevenue] = useState(0);
     const [reviews, setReviews] = useState(0);
     const [memberships, setMemberships] = useState(0);
+    const [isPending, startTransition] = useTransition();
+    const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle');
+    const [submitMessage, setSubmitMessage] = useState('');
+    const formRef = useRef<HTMLFormElement>(null);
 
     // Internal state for bonus preview
     const [compliance, setCompliance] = useState<ComplianceRecord>({
@@ -21,6 +26,7 @@ export function DataEntryForm({ technicians }: { technicians: any[] }) {
         drugScreening: true,
         noOshaViolations: true,
         paceTraining: true,
+        dressCode: true,
     });
 
     const bonus = calculateTotalBonus(revenue, reviews, memberships, compliance);
@@ -32,11 +38,61 @@ export function DataEntryForm({ technicians }: { technicians: any[] }) {
         }));
     };
 
+    const handleSubmit = async (formData: FormData) => {
+        startTransition(async () => {
+            try {
+                await submitWeeklyPerformance(formData);
+                setSubmitStatus('success');
+                setSubmitMessage('Weekly report submitted successfully!');
+                // Reset form
+                setRevenue(0);
+                setReviews(0);
+                setMemberships(0);
+                setCompliance({
+                    vanCleanliness: true,
+                    paperworkSubmitted: true,
+                    estimateFollowups: true,
+                    zeroCallbacks: true,
+                    noComplaints: true,
+                    noBadDriving: true,
+                    drugScreening: true,
+                    noOshaViolations: true,
+                    paceTraining: true,
+                    dressCode: true,
+                });
+                formRef.current?.reset();
+                // Auto dismiss after 5s
+                setTimeout(() => {
+                    setSubmitStatus('idle');
+                    setSubmitMessage('');
+                }, 5000);
+            } catch (err) {
+                setSubmitStatus('error');
+                setSubmitMessage('Failed to submit. Please check all fields and try again.');
+                setTimeout(() => {
+                    setSubmitStatus('idle');
+                    setSubmitMessage('');
+                }, 5000);
+            }
+        });
+    };
+
     return (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Success/Error Toast */}
+            {submitStatus !== 'idle' && (
+                <div className={`lg:col-span-3 p-4 rounded-xl flex items-center gap-3 ${submitStatus === 'success'
+                    ? 'bg-success/10 border border-success/20 text-success'
+                    : 'bg-danger/10 border border-danger/20 text-danger'
+                    }`}>
+                    {submitStatus === 'success' && <CheckCircle2 className="w-5 h-5 flex-shrink-0" />}
+                    <span className="text-sm font-medium">{submitMessage}</span>
+                </div>
+            )}
+
             {/* LEFT COLUMN: Data Entry Form */}
             <div className="lg:col-span-2 space-y-6">
-                <form action={submitWeeklyPerformance} className="space-y-6">
+                <form ref={formRef} action={handleSubmit} className="space-y-6">
                     <Card className="space-y-4">
                         <h3 className="text-lg font-bold text-white border-b border-white/10 pb-2">1. Select Technician & Week</h3>
                         <div className="grid grid-cols-2 gap-4">
@@ -120,8 +176,12 @@ export function DataEntryForm({ technicians }: { technicians: any[] }) {
                     </Card>
 
                     <div className="flex justify-end pt-4">
-                        <button type="submit" className="bg-primary hover:bg-primary-light text-white font-bold py-3 px-8 rounded-xl shadow-lg shadow-primary/20 transition-all">
-                            Submit Weekly Report
+                        <button
+                            type="submit"
+                            disabled={isPending}
+                            className="bg-primary hover:bg-primary-light text-white font-bold py-3 px-8 rounded-xl shadow-lg shadow-primary/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            {isPending ? 'Submitting...' : 'Submit Weekly Report'}
                         </button>
                     </div>
                 </form>
@@ -152,9 +212,26 @@ export function DataEntryForm({ technicians }: { technicians: any[] }) {
                                 </span>
                             </div>
 
-                            {!bonus.eligible && (
+                            {bonus.infractionCount > 0 && bonus.strikeLevel !== 'disqualified' && (
+                                <div className="flex justify-between items-center text-warning">
+                                    <span className="text-sm">Deductions ({bonus.infractionCount} strike{bonus.infractionCount > 1 ? 's' : ''})</span>
+                                    <span className="font-mono">-${bonus.deductions}</span>
+                                </div>
+                            )}
+
+                            {bonus.strikeLevel === 'disqualified' && (
                                 <div className="text-xs text-danger text-center bg-danger/10 p-2 rounded">
-                                    Ineligible due to compliance failure
+                                    🚫 3+ Strikes — Bonus Disqualified
+                                </div>
+                            )}
+                            {bonus.strikeLevel === 'danger' && (
+                                <div className="text-xs text-orange-400 text-center bg-orange-400/10 p-2 rounded">
+                                    🔶 Strike 2 of 3 — One more and bonus is forfeited
+                                </div>
+                            )}
+                            {bonus.strikeLevel === 'warning' && (
+                                <div className="text-xs text-yellow-400 text-center bg-yellow-400/10 p-2 rounded">
+                                    ⚠️ Strike 1 of 3 — $25 deducted
                                 </div>
                             )}
                         </div>

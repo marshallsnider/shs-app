@@ -4,10 +4,19 @@ import { BonusResult } from "@/lib/engine";
 interface BonusCalculatorProps {
     bonus: BonusResult;
     potential: number; // Next potential milestone/max
+    revenue?: number;  // Current revenue for next-tier calc
 }
 
-export function BonusCalculator({ bonus, potential }: BonusCalculatorProps) {
+function getNextTierMessage(revenue: number): string | null {
+    if (revenue < 7000) return `$${(7000 - revenue).toLocaleString()} to unlock your first bonus!`;
+    if (revenue < 9500) return `$${(9500 - revenue).toLocaleString()} to reach the $100/block tier!`;
+    if (revenue < 13001) return `$${(13001 - revenue).toLocaleString()} to unlock Elite 2% bonus!`;
+    return null; // Already at max tier
+}
+
+export function BonusCalculator({ bonus, potential, revenue = 0 }: BonusCalculatorProps) {
     const formatter = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+    const nextTier = getNextTierMessage(revenue);
 
     return (
         <Card className="bg-gradient-to-br from-primary-dark to-slate-900 border-primary/20">
@@ -41,9 +50,15 @@ export function BonusCalculator({ bonus, potential }: BonusCalculatorProps) {
                 </div>
             )}
 
-            {bonus.eligible && bonus.total > 0 && (
+            {bonus.eligible && nextTier && (
                 <div className="mt-2 text-xs text-center text-primary-light">
-                    Keep pushing! Next tier unlocks at ...
+                    Keep pushing! {nextTier}
+                </div>
+            )}
+
+            {bonus.eligible && !nextTier && revenue >= 13001 && (
+                <div className="mt-2 text-xs text-center text-success">
+                    🏆 Elite tier active — earning 2% of total revenue!
                 </div>
             )}
         </Card>

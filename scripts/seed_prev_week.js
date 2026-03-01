@@ -75,8 +75,8 @@ async function main() {
             year: prevYear,
             weekNumber: prevWeekNumber,
             quarter: Math.ceil(prevWeekNumber / 13),
-            startDate: new Date(), // Dummy date
-            endDate: new Date(), // Dummy date
+            startDate: new Date(year, 0, 1 + (prevWeekNumber - 1) * 7),
+            endDate: new Date(year, 0, 1 + (prevWeekNumber - 1) * 7 + 6),
             totalRevenue: 5000,
             jobsCompleted: 10,
             reviews: 2,

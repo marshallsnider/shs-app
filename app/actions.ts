@@ -3,6 +3,36 @@
 import prisma from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { calculateTotalBonus, ComplianceRecord } from "@/lib/engine";
+import { cookies } from 'next/headers';
+import { redirect } from "next/navigation";
+
+export async function loginTechnician(employeeId: string) {
+    'use server';
+
+    const tech = await prisma.technician.findFirst({
+        where: {
+            employeeId: {
+                equals: employeeId.trim(),
+                mode: 'insensitive'
+            }
+        }
+    });
+
+    if (!tech) {
+        return { success: false, error: 'Invalid Employee ID' };
+    }
+
+    // Set cookie
+    const cookieStore = await cookies();
+    cookieStore.set('shs_tech_id', tech.id, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        maxAge: 60 * 60 * 24 * 30, // 30 days
+        path: '/',
+    });
+
+    return { success: true };
+}
 
 // --- Technician Management ---
 
@@ -10,9 +40,14 @@ export async function createTechnician(formData: FormData) {
     const name = formData.get("name") as string;
     const initials = name.split(" ").map(n => n[0]).join("").substring(0, 2).toUpperCase();
 
+    // Generate simple ID: Initials + Random 3 digits
+    const randomNum = Math.floor(100 + Math.random() * 900);
+    const employeeId = `${initials}-${randomNum}`;
+
     await prisma.technician.create({
         data: {
             name,
+            employeeId, // e.g. MS-123
             avatar: initials,
             isActive: true,
         }
@@ -57,6 +92,7 @@ export async function submitWeeklyPerformance(formData: FormData) {
         drugScreening: formData.get("drugScreening") === "on",
         noOshaViolations: formData.get("noOshaViolations") === "on",
         paceTraining: formData.get("paceTraining") === "on",
+        dressCode: formData.get("dressCode") === "on",
     };
 
     // Calculate Bonus
@@ -91,7 +127,9 @@ export async function submitWeeklyPerformance(formData: FormData) {
             baseBonus: bonusResult.base,
             spifBonus: bonusResult.spifs,
             totalBonus: bonusResult.total,
-            isCompliant: bonusResult.eligible
+            isCompliant: bonusResult.eligible,
+            infractionCount: bonusResult.infractionCount,
+            deductions: bonusResult.deductions
         },
         create: {
             technicianId,
@@ -110,7 +148,9 @@ export async function submitWeeklyPerformance(formData: FormData) {
             baseBonus: bonusResult.base,
             spifBonus: bonusResult.spifs,
             totalBonus: bonusResult.total,
-            isCompliant: bonusResult.eligible
+            isCompliant: bonusResult.eligible,
+            infractionCount: bonusResult.infractionCount,
+            deductions: bonusResult.deductions
         }
     });
 
@@ -190,4 +230,11 @@ export async function updateWeeklyGoal(technicianId: string, year: number, weekN
     });
 
     revalidatePath('/');
+}
+
+export async function logoutTechnician() {
+    'use server';
+    const cookieStore = await cookies();
+    cookieStore.delete('shs_tech_id');
+    redirect('/login');
 }

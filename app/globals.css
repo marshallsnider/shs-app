@@ -1,22 +1,29 @@
 @import "tailwindcss";
 
+html {
+  scroll-behavior: smooth;
+}
+
 @theme {
-  --color-primary: #1a365d;
-  --color-primary-light: #2a4365;
-  --color-primary-dark: #102a43;
-  
+  --color-primary: #FF652F;
+  --color-primary-light: #ff8559;
+  --color-primary-dark: #c44d24;
+
   --color-success: #10b981;
   --color-warning: #f59e0b;
   --color-danger: #ef4444;
 
-  --color-background: #0f172a;
-  --color-background-paper: #1e293b;
+  --color-background: #000000;
+  /* Pure black to blend with logo circle if needed, or #181818 */
+  --color-background-paper: #181818;
+  /* Matching the logo dark grey */
 }
 
 :root {
   /* Force dark mode appearance as base */
   background-color: var(--color-background);
-  color: #f8fafc; /* Slate 50 */
+  color: #f8fafc;
+  /* Slate 50 */
 }
 
 body {

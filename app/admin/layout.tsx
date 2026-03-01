@@ -7,7 +7,13 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
         <div className="flex h-screen bg-background text-white">
             {/* Sidebar */}
             <aside className="w-64 bg-background-paper border-r border-white/5 flex flex-col">
-                <div className="p-6">
+                <div className="p-6 flex flex-col items-center text-center">
+                    <div className="relative mb-3">
+                        <div className="absolute inset-0 bg-primary/20 blur-lg rounded-full" />
+                        <div className="bg-white/5 p-3 rounded-full border border-white/5 relative z-10 w-fit">
+                            <img src="/logo.png" alt="SHS Logo" className="w-12 h-12 object-contain" />
+                        </div>
+                    </div>
                     <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary-light to-white">
                         SHS Admin
                     </h1>
@@ -18,7 +24,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                     <NavLink href="/admin" icon={LayoutDashboard} label="Dashboard" />
                     <NavLink href="/admin/technicians" icon={Users} label="Technicians" />
                     <NavLink href="/admin/data-entry" icon={Database} label="Data Entry" />
-                    <NavLink href="/admin/reports" icon={FileBarChart} label="Reports" />
+                    <NavLink href="/api/reports" icon={FileBarChart} label="Reports" external />
                 </nav>
 
                 <div className="p-4 border-t border-white/5">
@@ -34,7 +40,15 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     );
 }
 
-function NavLink({ href, icon: Icon, label }: { href: string; icon: any; label: string }) {
+function NavLink({ href, icon: Icon, label, external }: { href: string; icon: any; label: string; external?: boolean }) {
+    if (external) {
+        return (
+            <a href={href} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors">
+                <Icon className="w-5 h-5" />
+                <span className="font-medium">{label}</span>
+            </a>
+        );
+    }
     return (
         <Link href={href} className="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors">
             <Icon className="w-5 h-5" />

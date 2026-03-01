@@ -54,6 +54,7 @@ async function main() {
         drugScreening: true,
         noOshaViolations: true,
         paceTraining: true,
+        dressCode: true,
     };
 
     const revenue = 13500;

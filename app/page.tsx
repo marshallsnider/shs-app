@@ -5,38 +5,52 @@ import { CompliancePanel } from "@/components/dashboard/CompliancePanel";
 import { BonusCalculator } from "@/components/dashboard/BonusCalculator";
 import { GoalProgress } from "@/components/dashboard/GoalProgress";
 import { calculateTotalBonus, ComplianceRecord } from "@/lib/engine";
-import { CheckCircle2, DollarSign, Star, Users, Award, TrendingUp, Flame } from "lucide-react";
+import { CheckCircle2, DollarSign, Star, Users, Award, TrendingUp, Flame, LogOut } from "lucide-react";
 import prisma from "@/lib/db";
 
 import { GoalsWidget } from "@/components/dashboard/GoalsWidget";
 import { LastWeekRecap } from "@/components/dashboard/LastWeekRecap";
+import { TrophyCase } from "@/components/dashboard/TrophyCase";
+import { ComplianceAlert } from "@/components/dashboard/ComplianceAlert";
+import { Leaderboard } from "@/components/dashboard/Leaderboard";
+import { HistoricalChart } from "@/components/dashboard/HistoricalChart";
+import { MilestoneToast } from "@/components/dashboard/MilestoneToast";
+import { logoutTechnician } from "@/app/actions";
 
 // Force dynamic to ensure data isn't cached
 export const dynamic = 'force-dynamic';
 
+import { cookies } from 'next/headers';
+import { redirect } from "next/navigation";
+
 export default async function Dashboard() {
-  // 1. Fetch Technician (Simulating logged in user - grabbing first one)
-  const tech = await prisma.technician.findFirst({
+  const cookieStore = await cookies();
+  const techId = cookieStore.get('shs_tech_id')?.value;
+
+  if (!techId) {
+    redirect('/login');
+  }
+
+  // 1. Fetch Technician specific to cookie
+  const tech = await prisma.technician.findUnique({
+    where: { id: techId },
     include: { badges: { include: { badge: true } } }
   });
 
   if (!tech) {
-    return (
-      <div className="min-h-screen flex items-center justify-center text-white">
-        <p>No technician account found. Please ask Admin to create one.</p>
-      </div>
-    );
+    redirect('/login');
   }
 
   // 2. Fetch Current Week Performance
   // determine current ISO week or just grab the latest one
+  // Robust ISO Week Calculation
   const now = new Date();
-  const year = now.getFullYear();
-
-  // Simple week calc
-  const startOfYear = new Date(year, 0, 1);
-  const days = Math.floor((now.getTime() - startOfYear.getTime()) / (24 * 60 * 60 * 1000));
-  const weekNumber = Math.ceil((days + 1) / 7);
+  const d = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+  const dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  const weekNumber = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+  const year = d.getUTCFullYear();
 
   // Previous week calculation
   let prevWeekNumber = weekNumber - 1;
@@ -68,6 +82,26 @@ export default async function Dashboard() {
     include: { compliance: true }
   });
 
+  // Fetch last 4 weeks for historical chart (handles year boundary)
+  const historicalWeeks: { year: number; weekNumber: number }[] = [];
+  for (let i = 3; i >= 0; i--) {
+    let wk = weekNumber - i;
+    let yr = year;
+    if (wk < 1) {
+      wk += 52;
+      yr -= 1;
+    }
+    historicalWeeks.push({ year: yr, weekNumber: wk });
+  }
+
+  const historicalData = await prisma.weeklyPerformance.findMany({
+    where: {
+      technicianId: tech.id,
+      OR: historicalWeeks.map(w => ({ year: w.year, weekNumber: w.weekNumber })),
+    },
+    orderBy: [{ year: 'asc' }, { weekNumber: 'asc' }],
+  });
+
   // Default values if no record yet
   const revenue = performance?.totalRevenue ?? 0;
   // @ts-ignore - DB field update might be lagging in types
@@ -86,16 +120,18 @@ export default async function Dashboard() {
     drugScreening: performance.compliance.drugScreening,
     noOshaViolations: performance.compliance.noOshaViolations,
     paceTraining: performance.compliance.paceTraining,
+    dressCode: performance.compliance.dressCode,
   } : {
-    vanCleanliness: false, // Default fail until passed
+    vanCleanliness: false,
     paperworkSubmitted: false,
     estimateFollowups: false,
-    zeroCallbacks: false, // Wait, maybe default true?
+    zeroCallbacks: false,
     noComplaints: false,
     noBadDriving: false,
     drugScreening: false,
     noOshaViolations: false,
     paceTraining: false,
+    dressCode: false,
   };
 
   // If no record, we might want to default "Negatives" to true (passing)?
@@ -106,18 +142,30 @@ export default async function Dashboard() {
   const formatter = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
 
   return (
-    <main className="min-h-screen px-4 py-6 pb-20 max-w-md mx-auto relative overflow-hidden">
+    <main id="top" className="min-h-screen px-4 py-6 pb-20 max-w-md mx-auto relative overflow-hidden">
+      {/* Milestone Toast */}
+      <MilestoneToast revenue={revenue} techName={tech.name} year={year} weekNumber={weekNumber} />
+
       {/* Background Decor */}
       <div className="absolute top-[-100px] right-[-100px] w-64 h-64 bg-primary/20 rounded-full blur-[80px] pointer-events-none" />
       <div className="absolute bottom-[-50px] left-[-50px] w-48 h-48 bg-success/10 rounded-full blur-[60px] pointer-events-none" />
 
       {/* Header */}
       <header className="flex items-center justify-between mb-8 relative z-10">
-        <div>
-          <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400">
-            Welcome back,
-          </h1>
-          <p className="text-xl text-white">{tech.name}</p>
+        <div className="flex items-center gap-3">
+          {/* Logo with Glow */}
+          <div className="relative">
+            <div className="absolute inset-0 bg-primary/30 blur-xl rounded-full" />
+            <div className="bg-white/5 p-2 rounded-full backdrop-blur-sm border border-white/10 relative z-10">
+              <img src="/logo.png" alt="SHS Logo" className="w-12 h-12 object-contain rounded-full" />
+            </div>
+          </div>
+          <div>
+            <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400">
+              Welcome back,
+            </h1>
+            <p className="text-lg text-white font-medium">{tech.name}</p>
+          </div>
         </div>
         <div className="flex flex-col items-center gap-1">
           <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary-light to-primary flex items-center justify-center border border-white/10 shadow-lg text-white font-bold text-lg">
@@ -130,8 +178,16 @@ export default async function Dashboard() {
               <span className="text-xs font-bold text-orange-400">{tech.currentStreak}</span>
             </div>
           )}
+          <form action={logoutTechnician}>
+            <button type="submit" className="p-1.5 rounded-full bg-white/5 hover:bg-white/10 text-slate-500 hover:text-white transition-colors" title="Log out">
+              <LogOut className="w-4 h-4" />
+            </button>
+          </form>
         </div>
       </header>
+
+      {/* Compliance Alert - Show immediately if not qualifying */}
+      <ComplianceAlert compliance={complianceRecord} infractionCount={bonus.infractionCount} deductions={bonus.deductions} strikeLevel={bonus.strikeLevel} />
 
       {/* Main Revenue Ring */}
       <section className="flex flex-col items-center justify-center mb-8 relative z-10">
@@ -159,7 +215,7 @@ export default async function Dashboard() {
 
       {/* Bonus Calculator */}
       <section className="mb-8 relative z-10">
-        <BonusCalculator bonus={bonus} potential={1000} />
+        <BonusCalculator bonus={bonus} potential={1000} revenue={revenue} />
       </section>
 
       {/* Key Metrics Grid */}
@@ -190,6 +246,23 @@ export default async function Dashboard() {
         />
       </section>
 
+      {/* Leaderboard */}
+      <section id="leaderboard" className="mb-8 relative z-10 scroll-mt-20">
+        <Leaderboard currentTechId={tech.id} year={year} weekNumber={weekNumber} />
+      </section>
+
+      {/* Historical Chart */}
+      <section className="mb-8 relative z-10">
+        <HistoricalChart
+          weeks={historicalData.map(h => ({
+            weekNumber: h.weekNumber,
+            revenue: h.totalRevenue,
+            jobs: h.jobsCompleted
+          }))}
+          currentWeek={weekNumber}
+        />
+      </section>
+
       {/* Last Week Recap */}
       {prevPerformance && (
         <LastWeekRecap
@@ -200,7 +273,6 @@ export default async function Dashboard() {
             prevPerformance.reviews,
             prevPerformance.memberships,
             prevPerformance.compliance || {
-              // Default conservative compliance if missing
               vanCleanliness: false,
               paperworkSubmitted: false,
               estimateFollowups: false,
@@ -210,6 +282,7 @@ export default async function Dashboard() {
               drugScreening: false,
               noOshaViolations: false,
               paceTraining: false,
+              dressCode: false,
             }
           ).total}
           isCompliant={prevPerformance.isCompliant}
@@ -232,24 +305,31 @@ export default async function Dashboard() {
         />
       </section>
 
+      {/* Trophy Case */}
+      <section className="mb-8 relative z-10">
+        <TrophyCase badges={tech.badges} />
+      </section>
+
       {/* Compliance */}
       <section className="mb-8 relative z-10 pb-20">
         <CompliancePanel
           compliance={complianceRecord}
           isEligible={bonus.eligible}
+          infractionCount={bonus.infractionCount}
+          strikeLevel={bonus.strikeLevel}
         />
       </section>
 
-      {/* Bottom Nav Placeholder */}
+      {/* Bottom Nav */}
       <div className="fixed bottom-0 left-0 right-0 h-16 bg-background-paper/90 backdrop-blur border-t border-white/5 flex items-center justify-around z-50">
-        <div className="flex flex-col items-center gap-1 text-primary-light">
+        <a href="#top" className="flex flex-col items-center gap-1 text-primary-light">
           <TrendingUp className="w-6 h-6" />
           <span className="text-[10px]">Dashboard</span>
-        </div>
-        <div className="flex flex-col items-center gap-1 text-slate-500">
+        </a>
+        <a href="#leaderboard" className="flex flex-col items-center gap-1 text-slate-500 hover:text-primary-light transition-colors">
           <Award className="w-6 h-6" />
           <span className="text-[10px]">Rank</span>
-        </div>
+        </a>
       </div>
     </main>
   );
