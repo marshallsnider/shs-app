@@ -70,44 +70,52 @@ export async function GET() {
             }
         }
 
-        // 3. Fetch Invoices for relevant Customers
-        const uniqueCusts = Array.from(customerIds);
+        // 3. Fetch ALL invoices directly (customer_id filter is broken in FP API)
+        //    Paginate to get a broad set, then match to techs by author_id
         let totalRev = 0;
         const processedInvoiceIds = new Set<string | number>();
+        let allInvoices: any[] = [];
 
-        // Concurrent Fetch with Limit
-        const batchSize = 5;
-        for (let i = 0; i < uniqueCusts.length; i += batchSize) {
-            const batch = uniqueCusts.slice(i, i + batchSize);
-            await Promise.all(batch.map(async (custId) => {
-                try {
-                    const invoices = await fetchFP(`/invoices?customer_id=${custId}`);
-                    for (const inv of invoices) {
-                        // DEDUPLICATION:
-                        if (inv.id && processedInvoiceIds.has(inv.id)) continue;
-                        processedInvoiceIds.add(inv.id);
+        // Paginate: fetch up to 200 invoices (4 pages of 50)
+        for (let page = 1; page <= 4; page++) {
+            try {
+                const batch = await fetchFP(`/invoices?limit=50&page=${page}`);
+                if (!batch.length) break;
+                allInvoices = allInvoices.concat(batch);
+                // Stop if we got fewer than requested (last page)
+                if (batch.length < 50) break;
+            } catch (e) {
+                console.log(`Invoice page ${page} fetch failed, stopping pagination`);
+                break;
+            }
+        }
 
-                        // Only recent invoices?
-                        // if (new Date(inv.created_at) < sevenDaysAgo) continue;
+        console.log(`Fetched ${allInvoices.length} total invoices`);
 
-                        let techId = null;
-                        if (inv.assignments?.length) techId = inv.assignments[0].user_id;
-                        else if (inv.team_members?.length) techId = inv.team_members[0].id;
-                        else if (inv.author_id) techId = inv.author_id;
-                        else if (inv.job_id && jobMap[inv.job_id]?.assignments?.length) techId = jobMap[inv.job_id].assignments[0].user_id;
+        for (const inv of allInvoices) {
+            // Deduplicate
+            if (inv.id && processedInvoiceIds.has(inv.id)) continue;
+            processedInvoiceIds.add(inv.id);
 
-                        const tech = userMap[techId];
-                        if (tech && inv.total) {
-                            const wk = getWeekData(inv.created_at);
-                            const key = `${tech.id}_${wk.year}_${wk.week}`;
-                            if (!jobCounts[key]) jobCounts[key] = { tech, ...wk, count: 0, revenue: 0 };
+            if (!inv.total || parseFloat(inv.total) === 0) continue;
+            if (!inv.created_at) continue;
 
-                            jobCounts[key].revenue += parseFloat(inv.total);
-                            totalRev += parseFloat(inv.total);
-                        }
-                    }
-                } catch (e) { /* ignore */ }
-            }));
+            // Match invoice to a technician
+            let techId = null;
+            if (inv.assignments?.length) techId = inv.assignments[0].user_id;
+            else if (inv.team_members?.length) techId = inv.team_members[0].id;
+            else if (inv.author_id) techId = inv.author_id;
+            else if (inv.job_id && jobMap[inv.job_id]?.assignments?.length) techId = jobMap[inv.job_id].assignments[0].user_id;
+
+            const tech = userMap[techId];
+            if (tech) {
+                const wk = getWeekData(inv.created_at);
+                const key = `${tech.id}_${wk.year}_${wk.week}`;
+                if (!jobCounts[key]) jobCounts[key] = { tech, ...wk, count: 0, revenue: 0 };
+
+                jobCounts[key].revenue += parseFloat(inv.total);
+                totalRev += parseFloat(inv.total);
+            }
         }
 
         // 4. Update DB
