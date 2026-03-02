@@ -4,6 +4,9 @@ import { Plus } from "lucide-react";
 import { createTechnician } from "../../actions";
 import { Technician } from "@prisma/client";
 import { EditTechButton } from "@/components/admin/EditTechButton";
+
+export const dynamic = 'force-dynamic';
+
 export default async function TechniciansPage() {
     const technicians = (await prisma.technician.findMany()) || [];
 
