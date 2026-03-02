@@ -27,9 +27,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                     <NavLink href="/admin/reports" icon={FileBarChart} label="Reports" />
                 </nav>
 
-                <div className="p-4 border-t border-white/5">
-                    <NavLink href="#" icon={Settings} label="Settings" />
-                </div>
+                {/* Settings link removed to prevent dead buttons before launch */}
             </aside>
 
             {/* Main Content */}
