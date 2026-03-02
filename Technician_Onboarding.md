@@ -10,14 +10,20 @@ This document will walk you through exactly how our bonus structure works, how t
 
 Your bonus is calculated every week based on three things: **Revenue**, **Extra Incentives (SPIFs)**, and **Compliance**. Every week is a fresh start!
 
-### 1. Base Revenue Bonus
-To qualify for the base bonus, you must hit a minimum of **$7,000 in revenue** for the week.
-* **$7,000 to $12,999:** You earn **1%** of your total revenue.
-* **$13,000+ (Change Makers Elite):** You earn **2%** of your total revenue.
+### 1. Weekly Sales Bonus (Base Portion - Capped at $1,000)
+To qualify for the base bonus, you must hit a minimum of **$7,000 in collected sales** for the week. The bonus is paid out in blocks:
 
-*(Example: If you bring in $8,000 in a week, your base bonus is $80. If you bring in $15,000, your base bonus jumps to $300!)*
+* **$7,000 to $9,000:** You earn **$75 per full $500 block**.
+  * *(e.g., $7,000 = $75. $7,500 = $150. Maxes out at 5 blocks = $375).*
+* **$9,500 to $13,000:** You earn **$100 per full $500 block** on top of the first tier.
+  * *(e.g., $9,500 = $475. Maxes out at 8 additional blocks = $800).*
+* **Base Cap:** The maximum base bonus is **$1,000**, reached exactly when you hit $13,000.
 
-### 2. Extra Incentives (SPIFs)
+### 2. High-Sales Multiplier (Uncapped)
+Once your weekly collected sales hit **$13,001 or more**, you receive an additional **2% of your TOTAL weekly sales**, stacked right on top of your $1,000 base bonus!
+*(Example: $20,000 in collected sales = $1,000 base + $400 (2%) = $1,400 total bonus!)*
+
+### 3. Extra Incentives (SPIFs)
 On top of your revenue bonus, you get flat-rate bonuses for specific achievements:
 * **$25** for every **5-Star Review** you collect.
 * **$25** for every **Club Membership** you sell.
