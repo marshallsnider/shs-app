@@ -145,9 +145,14 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
                                 const issues = [];
                                 if (!p.compliance.vanCleanliness) issues.push("Van Dirty");
                                 if (!p.compliance.paperworkSubmitted) issues.push("No Paperwork");
+                                if (!p.compliance.estimateFollowups) issues.push("Estimate Follow-ups");
                                 if (!p.compliance.zeroCallbacks) issues.push("Callbacks");
+                                if (!p.compliance.noComplaints) issues.push("Complaints");
+                                if (!p.compliance.noBadDriving) issues.push("Bad Driving");
+                                if (!p.compliance.drugScreening) issues.push("Drug Screening");
+                                if (!p.compliance.noOshaViolations) issues.push("OSHA Violation");
+                                if (!p.compliance.paceTraining) issues.push("PACE Training");
                                 if (!p.compliance.dressCode) issues.push("Dress Code");
-                                // ... simplified list
                                 const issueText = issues.join(", ") || "General Failure";
 
                                 return (

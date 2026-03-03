@@ -41,7 +41,6 @@ export async function GET(request: NextRequest) {
         const jobs = await fetchFP('/jobs?limit=50');
 
         const jobCounts: Record<string, any> = {};
-        const customerIds = new Set<number>();
         const jobMap: Record<number, any> = {};
 
         for (const job of jobs) {
@@ -49,7 +48,6 @@ export async function GET(request: NextRequest) {
             if (new Date(job.updated_at || job.start_time) < sevenDaysAgo) continue;
 
             const wk = getWeekData(job.start_time);
-            if (job.customer_id) customerIds.add(job.customer_id);
             jobMap[job.id] = job;
 
             if (job.assignments) {

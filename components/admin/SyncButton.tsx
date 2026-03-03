@@ -17,7 +17,7 @@ export function SyncButton() {
 
             if (res.ok) {
                 setStatus('success');
-                setMessage(`Synced! ${data.jobsSynced || 0} jobs processed.`);
+                setMessage(`Synced! ${data.syncedJobs || 0} jobs, ${data.syncedInvoices || 0} invoices processed.`);
             } else {
                 setStatus('error');
                 setMessage(data.error || 'Sync failed');

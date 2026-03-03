@@ -15,14 +15,12 @@ async function getAdminSession() {
 }
 
 export async function logoutAdmin() {
-    'use server';
     const cookieStore = await cookies();
     cookieStore.delete('shs_admin_token');
     redirect('/admin-login');
 }
 
 export async function loginTechnician(employeeId: string) {
-    'use server';
 
     const tech = await prisma.technician.findFirst({
         where: {
@@ -243,7 +241,6 @@ function getDateFromWeek(year: number, week: number): Date {
 // --- Goals ---
 
 export async function updateWeeklyGoal(technicianId: string, year: number, weekNumber: number, newGoal: number) {
-    'use server';
 
     const startDate = getDateFromWeek(year, weekNumber);
     const endDate = new Date(startDate);
@@ -280,7 +277,6 @@ export async function updateWeeklyGoal(technicianId: string, year: number, weekN
 }
 
 export async function logoutTechnician() {
-    'use server';
     const cookieStore = await cookies();
     cookieStore.delete('shs_tech_id');
     redirect('/login');

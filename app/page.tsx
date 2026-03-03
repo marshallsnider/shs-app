@@ -104,7 +104,6 @@ export default async function Dashboard() {
 
   // Default values if no record yet
   const revenue = performance?.totalRevenue ?? 0;
-  // @ts-ignore - DB field update might be lagging in types
   const revenueGoal = performance?.revenueGoal ?? 6500;
   const jobs = performance?.jobsCompleted ?? 0;
   const reviews = performance?.reviews ?? 0;
@@ -195,20 +194,20 @@ export default async function Dashboard() {
           {/* Animated Glow behind ring */}
           <div className="absolute inset-0 bg-primary/20 blur-xl rounded-full" />
           <ProgressRing
-            progress={Math.min((revenue / 7000) * 100, 100)}
+            progress={Math.min((revenue / revenueGoal) * 100, 100)}
             size={240}
             strokeWidth={16}
             label={formatter.format(revenue)}
             subLabel="Current Revenue"
-            color={revenue >= 7000 ? "#10b981" : "#3b82f6"}
+            color={revenue >= revenueGoal ? "#10b981" : "#3b82f6"}
           />
         </div>
 
         <div className="mt-4 text-center">
           <p className="text-sm text-slate-400">
-            {revenue >= 7000
+            {revenue >= revenueGoal
               ? "Change Makers Bonus Unlocked! 🎉"
-              : `${formatter.format(7000 - revenue)} to unlock bonus`}
+              : `${formatter.format(revenueGoal - revenue)} to unlock bonus`}
           </p>
         </div>
       </section>
