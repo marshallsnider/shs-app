@@ -1,35 +1,32 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import prisma from '@/lib/db';
+import { verifyAdminToken } from '@/lib/auth';
 
-const API_KEY = process.env.FIELD_PULSE_API_KEY;
-const BASE_URL = process.env.FIELD_PULSE_BASE_URL || "https://ywe3crmpll.execute-api.us-east-2.amazonaws.com/stage";
+const FIELD_PULSE_API_KEY = process.env.FIELD_PULSE_API_KEY;
+const FIELD_PULSE_BASE_URL = process.env.FIELD_PULSE_BASE_URL || "https://ywe3crmpll.execute-api.us-east-2.amazonaws.com/stage";
 
 export const dynamic = 'force-dynamic'; // No caching
-export const maxDuration = 60; // Max duration for Pro plan (Hobby is 10s, might be tight)
+export const maxDuration = 60; // Max duration for Vercel
 
 async function fetchFP(endpoint: string) {
-    if (!API_KEY) throw new Error("Missing API Key");
-    const res = await fetch(`${BASE_URL}${endpoint}`, {
-        headers: { 'x-api-key': API_KEY }
+    if (!FIELD_PULSE_API_KEY) throw new Error("Missing API Key");
+    const res = await fetch(`${FIELD_PULSE_BASE_URL}${endpoint}`, {
+        headers: { 'x-api-key': FIELD_PULSE_API_KEY }
     });
     if (!res.ok) throw new Error(`FP Error: ${res.statusText}`);
     const json = await res.json();
-    // Helper types?
     return (json as any).response || (json as any).data || (Array.isArray(json) ? json : []);
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
     try {
-        if (!API_KEY) return NextResponse.json({ error: 'No API Key' }, { status: 500 });
+        if (!FIELD_PULSE_API_KEY) return NextResponse.json({ error: 'No API Key' }, { status: 500 });
 
         console.log('--- Starting Sync (API) ---');
 
         // 1. Sync Techs
         const fpUsers = await fetchFP('/users');
-        // STRICT FILTER: Only sync data for technicians marked Active in our DB
-        const dbTechs = await prisma.technician.findMany({
-            where: { isActive: true }
-        });
+        const dbTechs = await prisma.technician.findMany({ where: { isActive: true } });
         const userMap: Record<number, any> = {};
 
         for (const u of fpUsers) {
@@ -38,11 +35,9 @@ export async function GET() {
             if (tech) userMap[u.id] = tech;
         }
 
-        // 2. Fetch Recent Jobs (Last 7 Days to be safe/fast)
+        // 2. Fetch Recent Jobs
         const sevenDaysAgo = new Date();
         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-        // FP might support ?updated_after=ISO, let's try strict limit instead if generic
-        // Assuming limit=50 is fast enough
         const jobs = await fetchFP('/jobs?limit=50');
 
         const jobCounts: Record<string, any> = {};
@@ -51,7 +46,6 @@ export async function GET() {
 
         for (const job of jobs) {
             if (!job.start_time) continue;
-            // Date filter optimization
             if (new Date(job.updated_at || job.start_time) < sevenDaysAgo) continue;
 
             const wk = getWeekData(job.start_time);
@@ -70,37 +64,30 @@ export async function GET() {
             }
         }
 
-        // 3. Fetch ALL invoices directly (customer_id filter is broken in FP API)
-        //    Paginate to get a broad set, then match to techs by author_id
+        // 3. Fetch Invoices
         let totalRev = 0;
         const processedInvoiceIds = new Set<string | number>();
         let allInvoices: any[] = [];
+        const techniciansProcessed = new Set<string>();
 
-        // Paginate: fetch up to 200 invoices (4 pages of 50)
         for (let page = 1; page <= 4; page++) {
             try {
                 const batch = await fetchFP(`/invoices?limit=50&page=${page}`);
                 if (!batch.length) break;
                 allInvoices = allInvoices.concat(batch);
-                // Stop if we got fewer than requested (last page)
                 if (batch.length < 50) break;
             } catch (e) {
-                console.log(`Invoice page ${page} fetch failed, stopping pagination`);
                 break;
             }
         }
 
-        console.log(`Fetched ${allInvoices.length} total invoices`);
-
         for (const inv of allInvoices) {
-            // Deduplicate
             if (inv.id && processedInvoiceIds.has(inv.id)) continue;
             processedInvoiceIds.add(inv.id);
 
             if (!inv.total || parseFloat(inv.total) === 0) continue;
             if (!inv.created_at) continue;
 
-            // Match invoice to a technician
             let techId = null;
             if (inv.assignments?.length) techId = inv.assignments[0].user_id;
             else if (inv.team_members?.length) techId = inv.team_members[0].id;
@@ -109,6 +96,7 @@ export async function GET() {
 
             const tech = userMap[techId];
             if (tech) {
+                techniciansProcessed.add(tech.name);
                 const wk = getWeekData(inv.created_at);
                 const key = `${tech.id}_${wk.year}_${wk.week}`;
                 if (!jobCounts[key]) jobCounts[key] = { tech, ...wk, count: 0, revenue: 0 };
@@ -148,10 +136,32 @@ export async function GET() {
             });
         }
 
-        return NextResponse.json({ success: true, revenueSynced: totalRev, jobsSynced: jobs.length });
+        // 5. Track Audit Log
+        const token = request.cookies.get('shs_admin_token')?.value;
+        const caller = token ? await verifyAdminToken(token) : null;
 
-    } catch (e: any) {
-        return NextResponse.json({ error: e.message }, { status: 500 });
+        if (caller) {
+            await prisma.auditLog.create({
+                data: {
+                    adminId: caller.id,
+                    action: "SYNC_FIELDPULSE",
+                    details: JSON.stringify({
+                        totalInvoices: allInvoices.length,
+                        totalJobs: jobs.length,
+                        techniciansProcessed: techniciansProcessed.size,
+                    }),
+                },
+            });
+        }
+
+        return NextResponse.json({
+            success: true,
+            syncedJobs: jobs.length,
+            syncedInvoices: allInvoices.length,
+            techniciansProcessed: Array.from(techniciansProcessed)
+        });
+    } catch (error) {
+        return NextResponse.json({ error: (error as Error).message }, { status: 500 });
     }
 }
 

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Loader2, ShieldCheck } from 'lucide-react';
 
 export default function AdminLoginPage() {
+    const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
@@ -17,7 +18,7 @@ export default function AdminLoginPage() {
             const res = await fetch('/api/admin-auth', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ password }),
+                body: JSON.stringify({ email, password }),
             });
 
             if (res.ok) {
@@ -26,7 +27,7 @@ export default function AdminLoginPage() {
                 window.location.href = params.get('from') || '/admin';
             } else {
                 const data = await res.json();
-                setError(data.error || 'Invalid password');
+                setError(data.error || 'Invalid credentials');
             }
         } catch {
             setError('An error occurred. Please try again.');
@@ -48,19 +49,27 @@ export default function AdminLoginPage() {
                         <ShieldCheck className="w-12 h-12 text-primary-light relative z-10" />
                     </div>
                     <h1 className="text-2xl font-bold text-white">Admin Access</h1>
-                    <p className="text-slate-400 text-center mt-2">Enter the admin password to continue.</p>
+                    <p className="text-slate-400 text-center mt-2">Sign in to manage the application.</p>
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div>
                         <input
+                            type="email"
+                            placeholder="Email Address"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-slate-500 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all text-center text-lg mb-3"
+                            required
+                            autoFocus
+                        />
+                        <input
                             type="password"
-                            placeholder="Admin Password"
+                            placeholder="Password"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-slate-500 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all text-center text-lg"
                             required
-                            autoFocus
                         />
                     </div>
 
@@ -75,7 +84,7 @@ export default function AdminLoginPage() {
                         disabled={loading}
                         className="w-full bg-gradient-to-r from-primary to-orange-600 hover:from-primary-light hover:to-primary text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     >
-                        {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Enter Admin Dashboard'}
+                        {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Sign In'}
                     </button>
                 </form>
 

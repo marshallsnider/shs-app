@@ -11,31 +11,34 @@ datasource db {
 }
 
 model Technician {
-  id          String   @id @default(uuid())
-  name        String
-  email       String?  @unique
-  avatar      String?  // Initials or image URL
-  employeeId  String?  @unique
-  startDate   DateTime @default(now())
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
+  id         String   @id @default(uuid())
+  name       String
+  email      String?  @unique
+  avatar     String? // Initials or image URL
+  employeeId String?  @unique
+  startDate  DateTime @default(now())
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
   // Gamification
-  currentStreak Int      @default(0) // Consecutive compliant weeks
-  details       String?  // JSON for extra stats if needed
-  
+  currentStreak Int     @default(0) // Consecutive compliant weeks
+  details       String? // JSON for extra stats if needed
+
+  // Auditing
+  lastModifiedBy String? // references Admin.id conceptually
+
   performances WeeklyPerformance[]
   badges       TechnicianBadge[]
 }
 
 model Badge {
-  id          String   @id @default(uuid())
-  code        String   @unique // e.g. "FIRST_STEPS"
+  id          String @id @default(uuid())
+  code        String @unique // e.g. "FIRST_STEPS"
   name        String
   description String
-  icon        String   // Lucide icon name or emoji
-  
+  icon        String // Lucide icon name or emoji
+
   technicians TechnicianBadge[]
 }
 
@@ -45,64 +48,93 @@ model TechnicianBadge {
   technician   Technician @relation(fields: [technicianId], references: [id], onDelete: Cascade)
   badgeId      String
   badge        Badge      @relation(fields: [badgeId], references: [id], onDelete: Cascade)
-  
-  earnedAt     DateTime   @default(now())
+
+  earnedAt DateTime @default(now())
 
   @@unique([technicianId, badgeId])
 }
 
 model WeeklyPerformance {
-  id            String   @id @default(uuid())
-  technicianId  String
-  technician    Technician @relation(fields: [technicianId], references: [id], onDelete: Cascade)
-  
-  year          Int
-  weekNumber    Int      // 1-52
-  quarter       Int      // 1-4
-  startDate     DateTime
-  endDate       DateTime
-  
+  id           String     @id @default(uuid())
+  technicianId String
+  technician   Technician @relation(fields: [technicianId], references: [id], onDelete: Cascade)
+
+  year       Int
+  weekNumber Int // 1-52
+  quarter    Int // 1-4
+  startDate  DateTime
+  endDate    DateTime
+
   // Revenue Metrics
-  totalRevenue  Float    @default(0)
-  revenueGoal   Float    @default(6500) // User-settable goal
-  jobsCompleted Int      @default(0)
-  
+  totalRevenue  Float @default(0)
+  revenueGoal   Float @default(6500) // User-settable goal
+  jobsCompleted Int   @default(0)
+
   // SPIFs
-  reviews       Int      @default(0)
-  memberships   Int      @default(0)
-  
+  reviews     Int @default(0)
+  memberships Int @default(0)
+
   // Compliance Link
-  compliance    ComplianceRecord?
-  
+  compliance ComplianceRecord?
+
   // Snapshots (calculated values stored for history)
-  baseBonus       Float    @default(0)
-  spifBonus       Float    @default(0)
-  totalBonus      Float    @default(0)
-  isCompliant     Boolean  @default(false)
-  infractionCount Int      @default(0)
-  deductions      Float    @default(0)
-  
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  baseBonus       Float   @default(0)
+  spifBonus       Float   @default(0)
+  totalBonus      Float   @default(0)
+  isCompliant     Boolean @default(false)
+  infractionCount Int     @default(0)
+  deductions      Float   @default(0)
+
+  // Auditing
+  lastModifiedBy String? // references Admin.id conceptually
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([technicianId, year, weekNumber])
 }
 
 model ComplianceRecord {
-  id                   String            @id @default(uuid())
-  weeklyPerformanceId  String            @unique
-  weeklyPerformance    WeeklyPerformance @relation(fields: [weeklyPerformanceId], references: [id], onDelete: Cascade)
-  
-  vanCleanliness       Boolean @default(false)
-  paperworkSubmitted   Boolean @default(false)
-  estimateFollowups    Boolean @default(false)
-  zeroCallbacks        Boolean @default(false)
-  noComplaints         Boolean @default(false)
-  noBadDriving         Boolean @default(false)
-  drugScreening        Boolean @default(false)
-  noOshaViolations     Boolean @default(false)
-  paceTraining         Boolean @default(false)
-  dressCode            Boolean @default(false)
-  
-  notes                String?
+  id                  String            @id @default(uuid())
+  weeklyPerformanceId String            @unique
+  weeklyPerformance   WeeklyPerformance @relation(fields: [weeklyPerformanceId], references: [id], onDelete: Cascade)
+
+  vanCleanliness     Boolean @default(false)
+  paperworkSubmitted Boolean @default(false)
+  estimateFollowups  Boolean @default(false)
+  zeroCallbacks      Boolean @default(false)
+  noComplaints       Boolean @default(false)
+  noBadDriving       Boolean @default(false)
+  drugScreening      Boolean @default(false)
+  noOshaViolations   Boolean @default(false)
+  paceTraining       Boolean @default(false)
+  dressCode          Boolean @default(false)
+
+  notes String?
+}
+
+// --- Admin & Auditing ---
+
+model Admin {
+  id           String   @id @default(uuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         String   @default("MANAGER") // "SUPER_ADMIN" or "MANAGER"
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  auditLogs AuditLog[]
+}
+
+model AuditLog {
+  id       String  @id @default(uuid())
+  adminId  String
+  admin    Admin   @relation(fields: [adminId], references: [id])
+  action   String // e.g. "SYNC_FIELDPULSE", "UPDATE_PERFORMANCE", "EDIT_TECH"
+  targetId String? // The ID of the thing being affected (e.g. Technician ID)
+  details  String? // JSON string with extra details if needed
+
+  createdAt DateTime @default(now())
 }

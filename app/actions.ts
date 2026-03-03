@@ -5,6 +5,21 @@ import { revalidatePath } from "next/cache";
 import { calculateTotalBonus, ComplianceRecord } from "@/lib/engine";
 import { cookies } from 'next/headers';
 import { redirect } from "next/navigation";
+import { verifyAdminToken } from "@/lib/auth";
+
+async function getAdminSession() {
+    const cookieStore = await cookies();
+    const token = cookieStore.get('shs_admin_token')?.value;
+    if (!token) return null;
+    return await verifyAdminToken(token);
+}
+
+export async function logoutAdmin() {
+    'use server';
+    const cookieStore = await cookies();
+    cookieStore.delete('shs_admin_token');
+    redirect('/admin-login');
+}
 
 export async function loginTechnician(employeeId: string) {
     'use server';
@@ -44,14 +59,29 @@ export async function createTechnician(formData: FormData) {
     const randomNum = Math.floor(100 + Math.random() * 900);
     const employeeId = `${initials}-${randomNum}`;
 
-    await prisma.technician.create({
+    const admin = await getAdminSession();
+    const lastModifiedBy = admin?.id;
+
+    const newTech = await prisma.technician.create({
         data: {
             name,
             employeeId, // e.g. MS-123
             avatar: initials,
             isActive: true,
+            lastModifiedBy
         }
     });
+
+    if (admin) {
+        await prisma.auditLog.create({
+            data: {
+                adminId: admin.id,
+                action: "CREATE_TECHNICIAN",
+                targetId: newTech.id,
+                details: JSON.stringify({ name })
+            }
+        });
+    }
 
     revalidatePath('/admin/technicians');
 }
@@ -175,6 +205,23 @@ export async function submitWeeklyPerformance(formData: FormData) {
 
     if (savedPerf) {
         await checkAndAwardGamification(technicianId, savedPerf);
+    }
+
+    const admin = await getAdminSession();
+    if (admin) {
+        await prisma.auditLog.create({
+            data: {
+                adminId: admin.id,
+                action: "UPDATE_PERFORMANCE",
+                targetId: technicianId,
+                details: JSON.stringify({ year, weekNumber, revenue })
+            }
+        });
+
+        await prisma.weeklyPerformance.update({
+            where: { id: savedPerf?.id || '' },
+            data: { lastModifiedBy: admin.id }
+        }).catch(() => { });
     }
 
     revalidatePath('/admin');
