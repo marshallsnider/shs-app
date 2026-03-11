@@ -121,16 +121,16 @@ export default async function Dashboard() {
     paceTraining: performance.compliance.paceTraining,
     dressCode: performance.compliance.dressCode,
   } : {
-    vanCleanliness: false,
-    paperworkSubmitted: false,
-    estimateFollowups: false,
-    zeroCallbacks: false,
-    noComplaints: false,
-    noBadDriving: false,
-    drugScreening: false,
-    noOshaViolations: false,
-    paceTraining: false,
-    dressCode: false,
+    vanCleanliness: true,
+    paperworkSubmitted: true,
+    estimateFollowups: true,
+    zeroCallbacks: true,
+    noComplaints: true,
+    noBadDriving: true,
+    drugScreening: true,
+    noOshaViolations: true,
+    paceTraining: true,
+    dressCode: true,
   };
 
   // If no record, we might want to default "Negatives" to true (passing)?
