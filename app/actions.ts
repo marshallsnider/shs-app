@@ -3,6 +3,7 @@
 import prisma from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { calculateTotalBonus, ComplianceRecord } from "@/lib/engine";
+import { getWeekStartDate, getWeekEndDate, getQuarterFromWeekStart } from "@/lib/week";
 import { cookies } from 'next/headers';
 import { redirect } from "next/navigation";
 import { verifyAdminToken } from "@/lib/auth";
@@ -127,9 +128,8 @@ export async function submitWeeklyPerformance(formData: FormData) {
     const bonusResult = calculateTotalBonus(revenue, reviews, memberships, compliance);
 
     // Save to DB
-    const startDate = getDateFromWeek(year, weekNumber);
-    const endDate = new Date(startDate);
-    endDate.setDate(endDate.getDate() + 6);
+    const startDate = getWeekStartDate(year, weekNumber);
+    const endDate = getWeekEndDate(year, weekNumber);
 
     await prisma.weeklyPerformance.upsert({
         where: {
@@ -163,7 +163,7 @@ export async function submitWeeklyPerformance(formData: FormData) {
             technicianId,
             year,
             weekNumber,
-            quarter: Math.ceil(weekNumber / 13), // Approx
+            quarter: getQuarterFromWeekStart(year, weekNumber),
             startDate,
             endDate,
             totalRevenue: revenue,
@@ -226,25 +226,12 @@ export async function submitWeeklyPerformance(formData: FormData) {
     revalidatePath('/admin/data-entry');
 }
 
-function getDateFromWeek(year: number, week: number): Date {
-    // Simple ISO week logic approximation
-    const d = new Date(year, 0, 4); // Jan 4th is always in week 1
-    const dayNum = d.getDay() || 7;
-    const startOfYear = d.getTime() - (dayNum - 1) * 24 * 3600000;
-
-    // week 1 start
-    const w1Start = new Date(startOfYear);
-    // target week start
-    return new Date(w1Start.getTime() + (week - 1) * 7 * 24 * 3600000);
-}
-
 // --- Goals ---
 
 export async function updateWeeklyGoal(technicianId: string, year: number, weekNumber: number, newGoal: number) {
 
-    const startDate = getDateFromWeek(year, weekNumber);
-    const endDate = new Date(startDate);
-    endDate.setDate(endDate.getDate() + 6);
+    const startDate = getWeekStartDate(year, weekNumber);
+    const endDate = getWeekEndDate(year, weekNumber);
 
     await prisma.weeklyPerformance.upsert({
         where: {
@@ -261,7 +248,7 @@ export async function updateWeeklyGoal(technicianId: string, year: number, weekN
             technicianId,
             year,
             weekNumber,
-            quarter: Math.ceil(weekNumber / 13),
+            quarter: getQuarterFromWeekStart(year, weekNumber),
             startDate,
             endDate,
             revenueGoal: newGoal,

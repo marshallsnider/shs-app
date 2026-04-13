@@ -3,6 +3,7 @@ import { Card } from "@/components/ui/Card";
 import { Users, DollarSign, Award, AlertTriangle, FileText } from "lucide-react";
 import { SyncButton } from "@/components/admin/SyncButton";
 import { WeekPicker } from "@/components/admin/WeekPicker";
+import { getISOWeek } from "@/lib/week";
 
 export const dynamic = 'force-dynamic';
 
@@ -20,7 +21,7 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
     });
 
     const latestYear = latestPerf?.year || now.getFullYear();
-    const latestWeek = latestPerf?.weekNumber || getWeekNumber(now);
+    const latestWeek = latestPerf?.weekNumber || getISOWeek(now).weekNumber;
 
     // Allow searchParams to override displayed week
     const currentYear = params.year ? parseInt(params.year) : latestYear;
@@ -170,14 +171,6 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
             </div>
         </div>
     );
-}
-
-function getWeekNumber(d: Date) {
-    d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
-    d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
-    var yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-    var weekNo = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
-    return weekNo;
 }
 
 function KPICard({ label, value, icon: Icon, trend, color = "text-white" }: any) {

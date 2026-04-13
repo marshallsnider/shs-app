@@ -1,6 +1,9 @@
 import { SignJWT, jwtVerify } from 'jose';
 
-const JWT_SECRET = process.env.ADMIN_PASSWORD || 'fallback_secret_do_not_use_in_prod';
+const JWT_SECRET = process.env.JWT_SECRET || process.env.ADMIN_PASSWORD;
+if (!JWT_SECRET) {
+    throw new Error('JWT_SECRET environment variable must be set');
+}
 const key = new TextEncoder().encode(JWT_SECRET);
 
 export async function signAdminToken(admin: { id: string, email: string, name: string, role: string }) {

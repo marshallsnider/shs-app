@@ -1,6 +1,7 @@
 import { NextResponse, NextRequest } from 'next/server';
 import prisma from '@/lib/db';
 import { verifyAdminToken } from '@/lib/auth';
+import { getISOWeek, getWeekStartDate, getWeekEndDate, getQuarterFromWeekStart } from '@/lib/week';
 
 const FIELD_PULSE_API_KEY = process.env.FIELD_PULSE_API_KEY;
 const FIELD_PULSE_BASE_URL = process.env.FIELD_PULSE_BASE_URL || "https://ywe3crmpll.execute-api.us-east-2.amazonaws.com/stage";
@@ -123,7 +124,7 @@ export async function GET(request: NextRequest) {
                     technicianId: item.tech.id,
                     year: item.year,
                     weekNumber: item.week,
-                    quarter: Math.ceil(item.week / 13),
+                    quarter: getQuarterFromWeekStart(item.year, item.week),
                     startDate: item.startDate,
                     endDate: item.endDate,
                     jobsCompleted: item.count,
@@ -165,17 +166,8 @@ export async function GET(request: NextRequest) {
 
 function getWeekData(dateStr: string) {
     const d = new Date(dateStr);
-    const dayNum = d.getUTCDay() || 7;
-    d.setUTCDate(d.getUTCDate() + 4 - dayNum);
-    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-    const week = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
-    const year = d.getUTCFullYear();
-
-    const startDate = new Date(year, 0, 4);
-    const startDay = startDate.getDay() || 7;
-    const weekStart = new Date(startDate.getTime() - (startDay - 1) * 86400000 + (week - 1) * 604800000);
-    const weekEnd = new Date(weekStart);
-    weekEnd.setDate(weekEnd.getDate() + 6);
-
-    return { year, week, startDate: weekStart, endDate: weekEnd };
+    const { year, weekNumber: week } = getISOWeek(d);
+    const startDate = getWeekStartDate(year, week);
+    const endDate = getWeekEndDate(year, week);
+    return { year, week, startDate, endDate };
 }

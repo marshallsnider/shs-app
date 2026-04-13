@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { calculateTotalBonus, ComplianceRecord, COMPLIANCE_LABELS, COMPLIANCE_REQUIREMENTS, countInfractions } from '@/lib/engine';
+import { getISOWeek } from '@/lib/week';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,17 +10,9 @@ export async function GET(request: Request) {
     const yearParam = searchParams.get('year');
     const weekParam = searchParams.get('week');
 
-    // Determine week
-    const now = new Date();
-    const d = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
-    const dayNum = d.getUTCDay() || 7;
-    d.setUTCDate(d.getUTCDate() + 4 - dayNum);
-    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-    const currentWeek = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
-    const currentYear = d.getUTCFullYear();
-
-    const year = yearParam ? parseInt(yearParam) : currentYear;
-    const weekNumber = weekParam ? parseInt(weekParam) : currentWeek;
+    const current = getISOWeek(new Date());
+    const year = yearParam ? parseInt(yearParam) : current.year;
+    const weekNumber = weekParam ? parseInt(weekParam) : current.weekNumber;
 
     const performances = await prisma.weeklyPerformance.findMany({
         where: { year, weekNumber },

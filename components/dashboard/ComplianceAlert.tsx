@@ -8,6 +8,7 @@ interface ComplianceAlertProps {
     infractionCount: number;
     deductions: number;
     strikeLevel: 'clean' | 'warning' | 'danger' | 'disqualified';
+    hasData?: boolean;
 }
 
 // All Tailwind classes must be full static strings for JIT to detect them
@@ -60,7 +61,10 @@ const STRIKE_CONFIG = {
     },
 };
 
-export function ComplianceAlert({ compliance, infractionCount, deductions, strikeLevel }: ComplianceAlertProps) {
+export function ComplianceAlert({ compliance, infractionCount, deductions, strikeLevel, hasData = true }: ComplianceAlertProps) {
+    // Don't show strike alerts when no compliance data has been entered yet
+    if (!hasData) return null;
+
     const config = STRIKE_CONFIG[strikeLevel];
     if (!config.show) return null;
 

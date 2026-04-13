@@ -16,6 +16,7 @@ import { Leaderboard } from "@/components/dashboard/Leaderboard";
 import { HistoricalChart } from "@/components/dashboard/HistoricalChart";
 import { MilestoneToast } from "@/components/dashboard/MilestoneToast";
 import { logoutTechnician } from "@/app/actions";
+import { getISOWeek, getPreviousWeek } from "@/lib/week";
 
 // Force dynamic to ensure data isn't cached
 export const dynamic = 'force-dynamic';
@@ -42,23 +43,8 @@ export default async function Dashboard() {
   }
 
   // 2. Fetch Current Week Performance
-  // determine current ISO week or just grab the latest one
-  // Robust ISO Week Calculation
-  const now = new Date();
-  const d = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
-  const dayNum = d.getUTCDay() || 7;
-  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
-  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-  const weekNumber = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
-  const year = d.getUTCFullYear();
-
-  // Previous week calculation
-  let prevWeekNumber = weekNumber - 1;
-  let prevYear = year;
-  if (prevWeekNumber < 1) {
-    prevWeekNumber = 52; // Approximation, sufficient for demo
-    prevYear = year - 1;
-  }
+  const { year, weekNumber } = getISOWeek(new Date());
+  const { year: prevYear, weekNumber: prevWeekNumber } = getPreviousWeek(year, weekNumber);
 
   const performance = await prisma.weeklyPerformance.findUnique({
     where: {
@@ -84,14 +70,10 @@ export default async function Dashboard() {
 
   // Fetch last 4 weeks for historical chart (handles year boundary)
   const historicalWeeks: { year: number; weekNumber: number }[] = [];
-  for (let i = 3; i >= 0; i--) {
-    let wk = weekNumber - i;
-    let yr = year;
-    if (wk < 1) {
-      wk += 52;
-      yr -= 1;
-    }
-    historicalWeeks.push({ year: yr, weekNumber: wk });
+  let histWeek = { year, weekNumber };
+  for (let i = 0; i < 4; i++) {
+    historicalWeeks.unshift(histWeek);
+    histWeek = getPreviousWeek(histWeek.year, histWeek.weekNumber);
   }
 
   const historicalData = await prisma.weeklyPerformance.findMany({
@@ -109,6 +91,8 @@ export default async function Dashboard() {
   const reviews = performance?.reviews ?? 0;
   const memberships = performance?.memberships ?? 0;
 
+  const hasComplianceData = !!performance?.compliance;
+
   const complianceRecord: ComplianceRecord = performance?.compliance ? {
     vanCleanliness: performance.compliance.vanCleanliness,
     paperworkSubmitted: performance.compliance.paperworkSubmitted,
@@ -121,21 +105,17 @@ export default async function Dashboard() {
     paceTraining: performance.compliance.paceTraining,
     dressCode: performance.compliance.dressCode,
   } : {
-    vanCleanliness: true,
-    paperworkSubmitted: true,
-    estimateFollowups: true,
-    zeroCallbacks: true,
-    noComplaints: true,
-    noBadDriving: true,
-    drugScreening: true,
-    noOshaViolations: true,
-    paceTraining: true,
-    dressCode: true,
+    vanCleanliness: false,
+    paperworkSubmitted: false,
+    estimateFollowups: false,
+    zeroCallbacks: false,
+    noComplaints: false,
+    noBadDriving: false,
+    drugScreening: false,
+    noOshaViolations: false,
+    paceTraining: false,
+    dressCode: false,
   };
-
-  // If no record, we might want to default "Negatives" to true (passing)?
-  // e.g. "Zero Callbacks" is true by default until a callback happens.
-  // But for the MVP visualization let's stick to strict checking.
 
   const bonus = calculateTotalBonus(revenue, reviews, memberships, complianceRecord);
   const formatter = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
@@ -186,7 +166,7 @@ export default async function Dashboard() {
       </header>
 
       {/* Compliance Alert - Show immediately if not qualifying */}
-      <ComplianceAlert compliance={complianceRecord} infractionCount={bonus.infractionCount} deductions={bonus.deductions} strikeLevel={bonus.strikeLevel} />
+      <ComplianceAlert compliance={complianceRecord} infractionCount={bonus.infractionCount} deductions={bonus.deductions} strikeLevel={bonus.strikeLevel} hasData={hasComplianceData} />
 
       {/* Main Revenue Ring */}
       <section className="flex flex-col items-center justify-center mb-8 relative z-10">
@@ -316,6 +296,7 @@ export default async function Dashboard() {
           isEligible={bonus.eligible}
           infractionCount={bonus.infractionCount}
           strikeLevel={bonus.strikeLevel}
+          hasData={hasComplianceData}
         />
       </section>
 
