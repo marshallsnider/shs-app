@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useEffect, useTransition } from 'react';
 import { startQuiz, submitQuiz, type QuizResult } from '@/app/training/actions';
 import { type ClientQuestion, PHASE_LABELS, type Phase } from '@/lib/training';
 import { QuizResults } from './QuizResults';
@@ -24,7 +24,7 @@ export function QuizFlow({ phase, techName, onClose }: QuizFlowProps) {
   const [isPending, startTransition] = useTransition();
 
   // Start quiz on mount
-  useState(() => {
+  useEffect(() => {
     startTransition(async () => {
       const result = await startQuiz(phase);
       if ('error' in result) {
@@ -39,7 +39,7 @@ export function QuizFlow({ phase, techName, onClose }: QuizFlowProps) {
         });
       }
     });
-  });
+  }, [phase]);
 
   const phaseLabel = phase === 'FULL' ? 'Full PACE Quiz' : `${PHASE_LABELS[phase as Phase]} Quiz`;
 
