@@ -5,7 +5,7 @@ import { CompliancePanel } from "@/components/dashboard/CompliancePanel";
 import { BonusCalculator } from "@/components/dashboard/BonusCalculator";
 import { GoalProgress } from "@/components/dashboard/GoalProgress";
 import { calculateTotalBonus, ComplianceRecord } from "@/lib/engine";
-import { CheckCircle2, DollarSign, Star, Users, Award, TrendingUp, Flame, LogOut } from "lucide-react";
+import { CheckCircle2, DollarSign, Star, Users, Award, TrendingUp, Flame, LogOut, GraduationCap } from "lucide-react";
 import prisma from "@/lib/db";
 
 import { GoalsWidget } from "@/components/dashboard/GoalsWidget";
@@ -305,6 +305,10 @@ export default async function Dashboard() {
         <a href="#top" className="flex flex-col items-center gap-1 text-primary-light">
           <TrendingUp className="w-6 h-6" />
           <span className="text-[10px]">Dashboard</span>
+        </a>
+        <a href="/training" className="flex flex-col items-center gap-1 text-slate-500 hover:text-primary-light transition-colors">
+          <GraduationCap className="w-6 h-6" />
+          <span className="text-[10px]">Training</span>
         </a>
         <a href="#leaderboard" className="flex flex-col items-center gap-1 text-slate-500 hover:text-primary-light transition-colors">
           <Award className="w-6 h-6" />

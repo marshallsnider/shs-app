@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 import Link from "next/link";
-import { LayoutDashboard, Users, Database, FileBarChart, ShieldAlert, LogOut } from "lucide-react";
+import { LayoutDashboard, Users, Database, FileBarChart, ShieldAlert, LogOut, GraduationCap } from "lucide-react";
 import { cookies } from "next/headers";
 import { verifyAdminToken } from "@/lib/auth";
 import { redirect } from "next/navigation";
@@ -42,6 +42,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
                         <NavLink href="/admin/technicians" icon={Users} label="Technicians" />
                         <NavLink href="/admin/data-entry" icon={Database} label="Data Entry" />
                         <NavLink href="/admin/reports" icon={FileBarChart} label="Reports" />
+                        <NavLink href="/admin/training" icon={GraduationCap} label="PACE Training" />
 
                         {admin.role === 'SUPER_ADMIN' && (
                             <div className="pt-4 mt-4 border-t border-white/5">

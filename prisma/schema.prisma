@@ -28,8 +28,10 @@ model Technician {
   // Auditing
   lastModifiedBy String? // references Admin.id conceptually
 
-  performances WeeklyPerformance[]
-  badges       TechnicianBadge[]
+  performances   WeeklyPerformance[]
+  badges         TechnicianBadge[]
+  quizAttempts   QuizAttempt[]
+  phaseMasteries PhaseMastery[]
 }
 
 model Badge {
@@ -137,4 +139,53 @@ model AuditLog {
   details  String? // JSON string with extra details if needed
 
   createdAt DateTime @default(now())
+}
+
+// --- PACE Training ---
+
+model QuizQuestion {
+  id          String @id @default(uuid())
+  phase       String // "PREPARE" | "ARRIVE" | "CONNECT" | "EXECUTE"
+  question    String
+  optionA     String
+  optionB     String
+  optionC     String
+  optionD     String
+  correct     String // "A" | "B" | "C" | "D"
+  explanation String
+  difficulty  String @default("standard") // "standard" | "advanced"
+
+  createdAt DateTime @default(now())
+}
+
+model QuizAttempt {
+  id           String     @id @default(uuid())
+  technicianId String
+  technician   Technician @relation(fields: [technicianId], references: [id], onDelete: Cascade)
+
+  year        Int
+  weekNumber  Int
+  phase       String   // "PREPARE" | "ARRIVE" | "CONNECT" | "EXECUTE" | "FULL"
+  score       Int
+  total       Int
+  xpEarned    Int      @default(0)
+  passed      Boolean
+  answersJson String   // JSON: [{ questionId, selected, correct, isCorrect }]
+  completedAt DateTime @default(now())
+}
+
+model PhaseMastery {
+  id           String     @id @default(uuid())
+  technicianId String
+  technician   Technician @relation(fields: [technicianId], references: [id], onDelete: Cascade)
+
+  phase      String  // "PREPARE" | "ARRIVE" | "CONNECT" | "EXECUTE"
+  passCount  Int     @default(0)
+  mastered   Boolean @default(false)
+  masteredAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([technicianId, phase])
 }

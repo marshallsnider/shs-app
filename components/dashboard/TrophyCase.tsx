@@ -1,5 +1,5 @@
 import { Card } from "@/components/ui/Card";
-import { Star, DollarSign, Flame, Zap, Crown, Users, ShieldCheck, Lock } from "lucide-react";
+import { Star, DollarSign, Flame, Zap, Crown, Users, ShieldCheck, Lock, BookOpen, MapPin, MessageCircle, Wrench, Trophy, Target, GraduationCap } from "lucide-react";
 
 interface TrophyCaseProps {
     badges: any[]; // The earned badges (TechnicianBadge[])
@@ -15,7 +15,16 @@ const ICON_MAP: any = {
     'UNSTOPPABLE': Zap,
     'HIGH_ROLLER': Crown,
     'MEMBERSHIP_PRO': Users,
-    'PERFECT_WEEK': ShieldCheck
+    'PERFECT_WEEK': ShieldCheck,
+    'PACE_FIRST_QUIZ': BookOpen,
+    'PACE_PREPARE_MASTER': BookOpen,
+    'PACE_ARRIVE_MASTER': MapPin,
+    'PACE_CONNECT_MASTER': MessageCircle,
+    'PACE_EXECUTE_MASTER': Wrench,
+    'PACE_CHAMPION': Trophy,
+    'PACE_PERFECT_SCORE': Target,
+    'PACE_CONSISTENT': Flame,
+    'PACE_STARTER': GraduationCap,
 };
 
 // All definitions (Manual fallback if not passed, matching seed)
@@ -28,6 +37,15 @@ const ALL_BADGES_DEF = [
     { code: 'HIGH_ROLLER', name: 'High Roller', description: 'Hit $13k+ in a single week' },
     { code: 'MEMBERSHIP_PRO', name: 'Membership Pro', description: 'Sell 5+ memberships in a single week' },
     { code: 'PERFECT_WEEK', name: 'Perfect Week', description: '$7k+ Revenue AND 100% Compliance' },
+    { code: 'PACE_FIRST_QUIZ', name: 'First Step', description: 'Complete your first PACE quiz' },
+    { code: 'PACE_PREPARE_MASTER', name: 'Prepare Master', description: 'Master the Prepare phase' },
+    { code: 'PACE_ARRIVE_MASTER', name: 'Arrive Master', description: 'Master the Arrive phase' },
+    { code: 'PACE_CONNECT_MASTER', name: 'Connect Master', description: 'Master the Connect phase' },
+    { code: 'PACE_EXECUTE_MASTER', name: 'Execute Master', description: 'Master the Execute phase' },
+    { code: 'PACE_CHAMPION', name: 'PACE Master', description: 'Master all 4 PACE phases' },
+    { code: 'PACE_PERFECT_SCORE', name: 'Perfect Score', description: 'Score 100% on a Full PACE Quiz' },
+    { code: 'PACE_CONSISTENT', name: 'Consistent', description: 'Complete quizzes 3 weeks in a row' },
+    { code: 'PACE_STARTER', name: 'PACE Starter', description: 'Pass all 4 phase quizzes in one week' },
 ];
 
 export function TrophyCase({ badges }: TrophyCaseProps) {
