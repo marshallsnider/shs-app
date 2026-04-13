@@ -16,6 +16,7 @@ import { Leaderboard } from "@/components/dashboard/Leaderboard";
 import { HistoricalChart } from "@/components/dashboard/HistoricalChart";
 import { MilestoneToast } from "@/components/dashboard/MilestoneToast";
 import { logoutTechnician } from "@/app/actions";
+import { ChangePassword } from "@/components/dashboard/ChangePassword";
 import { getISOWeek, getPreviousWeek } from "@/lib/week";
 
 // Force dynamic to ensure data isn't cached
@@ -157,11 +158,14 @@ export default async function Dashboard() {
               <span className="text-xs font-bold text-orange-400">{tech.currentStreak}</span>
             </div>
           )}
-          <form action={logoutTechnician}>
-            <button type="submit" className="p-1.5 rounded-full bg-white/5 hover:bg-white/10 text-slate-500 hover:text-white transition-colors" title="Log out">
-              <LogOut className="w-4 h-4" />
-            </button>
-          </form>
+          <div className="flex items-center gap-2">
+            <ChangePassword />
+            <form action={logoutTechnician}>
+              <button type="submit" className="p-1.5 rounded-full bg-white/5 hover:bg-white/10 text-slate-500 hover:text-white transition-colors" title="Log out">
+                <LogOut className="w-4 h-4" />
+              </button>
+            </form>
+          </div>
         </div>
       </header>
 

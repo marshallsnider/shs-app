@@ -4,6 +4,7 @@ import { Plus } from "lucide-react";
 import { createTechnician } from "../../actions";
 import { Technician } from "@prisma/client";
 import { EditTechButton } from "@/components/admin/EditTechButton";
+import { ResetPasswordButton } from "@/components/admin/ResetPasswordButton";
 
 export const dynamic = 'force-dynamic';
 
@@ -48,6 +49,9 @@ export default async function TechniciansPage() {
                                         {tech.isActive ? 'ACTIVE' : 'INACTIVE'}
                                     </span>
                                     <span className="text-[10px] text-slate-500">Joined {tech.startDate.toLocaleDateString()}</span>
+                                </div>
+                                <div className="mt-1">
+                                    <ResetPasswordButton techId={tech.id} techName={tech.name} hasPassword={!!tech.passwordHash} />
                                 </div>
                             </div>
                         </div>

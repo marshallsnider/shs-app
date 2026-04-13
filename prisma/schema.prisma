@@ -14,9 +14,10 @@ model Technician {
   id         String   @id @default(uuid())
   name       String
   email      String?  @unique
-  avatar     String? // Initials or image URL
-  employeeId String?  @unique
-  startDate  DateTime @default(now())
+  avatar       String? // Initials or image URL
+  employeeId   String?  @unique
+  passwordHash String? // null = needs to set password on first login
+  startDate    DateTime @default(now())
   isActive   Boolean  @default(true)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt

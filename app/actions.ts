@@ -7,6 +7,7 @@ import { getWeekStartDate, getWeekEndDate, getQuarterFromWeekStart } from "@/lib
 import { cookies } from 'next/headers';
 import { redirect } from "next/navigation";
 import { verifyAdminToken } from "@/lib/auth";
+import bcrypt from 'bcryptjs';
 
 async function getAdminSession() {
     const cookieStore = await cookies();
@@ -21,19 +22,30 @@ export async function logoutAdmin() {
     redirect('/admin-login');
 }
 
-export async function loginTechnician(employeeId: string) {
-
+export async function loginTechnician(name: string, password: string) {
     const tech = await prisma.technician.findFirst({
         where: {
-            employeeId: {
-                equals: employeeId.trim(),
+            name: {
+                equals: name.trim(),
                 mode: 'insensitive'
-            }
+            },
+            isActive: true,
         }
     });
 
     if (!tech) {
-        return { success: false, error: 'Invalid Employee ID' };
+        return { success: false, error: 'No account found with that name' };
+    }
+
+    // No password set yet — send to setup
+    if (!tech.passwordHash) {
+        return { success: false, needsSetup: true, techId: tech.id };
+    }
+
+    // Verify password
+    const valid = await bcrypt.compare(password, tech.passwordHash);
+    if (!valid) {
+        return { success: false, error: 'Incorrect password' };
     }
 
     // Set cookie
@@ -45,6 +57,90 @@ export async function loginTechnician(employeeId: string) {
         path: '/',
     });
 
+    return { success: true };
+}
+
+export async function setupTechPassword(techId: string, password: string) {
+    if (password.length < 4) {
+        return { success: false, error: 'Password must be at least 4 characters' };
+    }
+
+    const tech = await prisma.technician.findUnique({ where: { id: techId } });
+    if (!tech) {
+        return { success: false, error: 'Technician not found' };
+    }
+
+    // Only allow setup if no password exists (first time or admin reset)
+    if (tech.passwordHash) {
+        return { success: false, error: 'Password already set. Use change password instead.' };
+    }
+
+    const hash = await bcrypt.hash(password, 10);
+    await prisma.technician.update({
+        where: { id: techId },
+        data: { passwordHash: hash },
+    });
+
+    // Log them in
+    const cookieStore = await cookies();
+    cookieStore.set('shs_tech_id', tech.id, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        maxAge: 60 * 60 * 24 * 30,
+        path: '/',
+    });
+
+    return { success: true };
+}
+
+export async function changeTechPassword(currentPassword: string, newPassword: string) {
+    const cookieStore = await cookies();
+    const techId = cookieStore.get('shs_tech_id')?.value;
+    if (!techId) return { success: false, error: 'Not logged in' };
+
+    if (newPassword.length < 4) {
+        return { success: false, error: 'Password must be at least 4 characters' };
+    }
+
+    const tech = await prisma.technician.findUnique({ where: { id: techId } });
+    if (!tech || !tech.passwordHash) {
+        return { success: false, error: 'Account not found' };
+    }
+
+    const valid = await bcrypt.compare(currentPassword, tech.passwordHash);
+    if (!valid) {
+        return { success: false, error: 'Current password is incorrect' };
+    }
+
+    const hash = await bcrypt.hash(newPassword, 10);
+    await prisma.technician.update({
+        where: { id: techId },
+        data: { passwordHash: hash },
+    });
+
+    return { success: true };
+}
+
+export async function adminResetTechPassword(techId: string) {
+    const admin = await getAdminSession();
+    if (!admin) return { success: false, error: 'Not authorized' };
+
+    await prisma.technician.update({
+        where: { id: techId },
+        data: { passwordHash: null },
+    });
+
+    if (admin) {
+        await prisma.auditLog.create({
+            data: {
+                adminId: admin.id,
+                action: "RESET_TECH_PASSWORD",
+                targetId: techId,
+            }
+        });
+    }
+
+    revalidatePath('/admin/technicians');
     return { success: true };
 }
 
