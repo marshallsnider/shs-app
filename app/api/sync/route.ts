@@ -63,23 +63,16 @@ export async function GET(request: NextRequest) {
         }
         const jobs = Array.from(jobsById.values());
 
-        // TEMP DIAGNOSTIC: log first job's structure so we can confirm FP's
-        // status field name and values. Remove once status filter is in place.
-        if (jobs[0]) {
-            const sample = jobs[0];
-            const statusFields: Record<string, any> = {};
-            for (const k of Object.keys(sample)) {
-                if (/status|state|complet|cancel|stage|progress/i.test(k)) statusFields[k] = sample[k];
-            }
-            console.log('[SYNC] FP job sample keys:', Object.keys(sample).sort().join(', '));
-            console.log('[SYNC] FP job status-like fields:', JSON.stringify(statusFields));
-        }
-
         const jobCounts: Record<string, any> = {};
         const jobMap: Record<number, any> = {};
 
         for (const job of jobs) {
             if (!job.start_time) continue;
+            // Only credit *completed* jobs. FP populates completed_at when
+            // a job moves to the completed status; scheduled / in-progress
+            // / cancelled jobs have it null. This is what excludes the
+            // padding that was inflating the per-tech job counts.
+            if (!job.completed_at) continue;
             // Skip future-dated jobs — they used to create future-week
             // performance rows that pushed the dashboard ahead a week.
             if (new Date(job.start_time) > now) continue;
@@ -114,11 +107,6 @@ export async function GET(request: NextRequest) {
             } catch (e) {
                 break;
             }
-        }
-
-        // TEMP DIAGNOSTIC: log first invoice structure for field-name confirmation.
-        if (allInvoices[0]) {
-            console.log('[SYNC] FP invoice sample keys:', Object.keys(allInvoices[0]).sort().join(', '));
         }
 
         for (const inv of allInvoices) {
