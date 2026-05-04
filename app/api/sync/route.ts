@@ -23,7 +23,21 @@ export async function GET(request: NextRequest) {
     try {
         if (!FIELD_PULSE_API_KEY) return NextResponse.json({ error: 'No API Key' }, { status: 500 });
 
-        console.log('--- Starting Sync (API) ---');
+        // Auth: accept either the Vercel cron Bearer (CRON_SECRET) or an
+        // admin cookie. Without one of these, refuse — this endpoint
+        // mutates the DB and was previously open to the internet.
+        const cronSecret = process.env.CRON_SECRET;
+        const authHeader = request.headers.get('authorization');
+        const isCron = !!cronSecret && authHeader === `Bearer ${cronSecret}`;
+
+        const adminToken = request.cookies.get('shs_admin_token')?.value;
+        const caller = adminToken ? await verifyAdminToken(adminToken) : null;
+
+        if (!isCron && !caller) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
+        console.log(`--- Starting Sync (API) [${isCron ? 'cron' : `admin:${caller?.id}`}] ---`);
 
         // 1. Sync Techs
         const fpUsers = await fetchFP('/users');
@@ -163,10 +177,7 @@ export async function GET(request: NextRequest) {
             });
         }
 
-        // 5. Track Audit Log
-        const token = request.cookies.get('shs_admin_token')?.value;
-        const caller = token ? await verifyAdminToken(token) : null;
-
+        // 5. Track Audit Log (only for admin-triggered syncs — cron has no adminId).
         if (caller) {
             await prisma.auditLog.create({
                 data: {
