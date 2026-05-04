@@ -39,19 +39,29 @@ export async function GET(request: NextRequest) {
         // 2. Fetch Jobs (paginate; FP API returns 50/page max).
         // Removed 7-day updated_at filter — it was excluding completed jobs that
         // hadn't been touched in a week, causing under-counts.
+        // Dedup by id defensively in case the gateway ignores the page param.
         const now = new Date();
-        let allJobs: any[] = [];
+        const jobsById = new Map<number, any>();
         for (let page = 1; page <= 10; page++) {
             try {
                 const batch = await fetchFP(`/jobs?limit=50&page=${page}`);
                 if (!batch.length) break;
-                allJobs = allJobs.concat(batch);
+                let added = 0;
+                for (const job of batch) {
+                    if (job.id && !jobsById.has(job.id)) {
+                        jobsById.set(job.id, job);
+                        added++;
+                    }
+                }
+                // If a page returned data but added nothing new, the gateway
+                // is repeating the same page — stop.
+                if (added === 0) break;
                 if (batch.length < 50) break;
             } catch (e) {
                 break;
             }
         }
-        const jobs = allJobs;
+        const jobs = Array.from(jobsById.values());
 
         // TEMP DIAGNOSTIC: log first job's structure so we can confirm FP's
         // status field name and values. Remove once status filter is in place.
