@@ -9,19 +9,12 @@ export const dynamic = 'force-dynamic';
 
 export default async function AdminDashboard({ searchParams }: { searchParams: Promise<{ year?: string; week?: string }> }) {
     const params = await searchParams;
-    // 1. Determine Current Week (Simplistic approx for now, ideally reliable lib)
+    // Current week = real ISO week of "now", not whatever's latest in the DB.
+    // (A future-dated job in the DB used to push the dashboard a week ahead.)
     const now = new Date();
-    // Getting week number - reusing logic or just filtering by recent date is better for aggregation?
-    // Let's filter by "Current Year" for now to show YTD or filter by specific week?
-    // The design shows "Total Revenue (Week)".
-
-    // We'll grab the latest available week from data to show "Most Recent Week" stats
-    const latestPerf = await prisma.weeklyPerformance.findFirst({
-        orderBy: { startDate: 'desc' }
-    });
-
-    const latestYear = latestPerf?.year || now.getFullYear();
-    const latestWeek = latestPerf?.weekNumber || getISOWeek(now).weekNumber;
+    const iso = getISOWeek(now);
+    const latestYear = iso.year;
+    const latestWeek = iso.weekNumber;
 
     // Allow searchParams to override displayed week
     const currentYear = params.year ? parseInt(params.year) : latestYear;

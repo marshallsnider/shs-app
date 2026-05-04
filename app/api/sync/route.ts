@@ -36,17 +36,53 @@ export async function GET(request: NextRequest) {
             if (tech) userMap[u.id] = tech;
         }
 
-        // 2. Fetch Recent Jobs
-        const sevenDaysAgo = new Date();
-        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-        const jobs = await fetchFP('/jobs?limit=50');
+        // 2. Fetch Jobs (paginate; FP API returns 50/page max).
+        // Removed 7-day updated_at filter — it was excluding completed jobs that
+        // hadn't been touched in a week, causing under-counts.
+        // Dedup by id defensively in case the gateway ignores the page param.
+        const now = new Date();
+        const jobsById = new Map<number, any>();
+        for (let page = 1; page <= 10; page++) {
+            try {
+                const batch = await fetchFP(`/jobs?limit=50&page=${page}`);
+                if (!batch.length) break;
+                let added = 0;
+                for (const job of batch) {
+                    if (job.id && !jobsById.has(job.id)) {
+                        jobsById.set(job.id, job);
+                        added++;
+                    }
+                }
+                // If a page returned data but added nothing new, the gateway
+                // is repeating the same page — stop.
+                if (added === 0) break;
+                if (batch.length < 50) break;
+            } catch (e) {
+                break;
+            }
+        }
+        const jobs = Array.from(jobsById.values());
+
+        // TEMP DIAGNOSTIC: log first job's structure so we can confirm FP's
+        // status field name and values. Remove once status filter is in place.
+        if (jobs[0]) {
+            const sample = jobs[0];
+            const statusFields: Record<string, any> = {};
+            for (const k of Object.keys(sample)) {
+                if (/status|state|complet|cancel|stage|progress/i.test(k)) statusFields[k] = sample[k];
+            }
+            console.log('[SYNC] FP job sample keys:', Object.keys(sample).sort().join(', '));
+            console.log('[SYNC] FP job status-like fields:', JSON.stringify(statusFields));
+        }
 
         const jobCounts: Record<string, any> = {};
         const jobMap: Record<number, any> = {};
 
         for (const job of jobs) {
             if (!job.start_time) continue;
-            if (new Date(job.updated_at || job.start_time) < sevenDaysAgo) continue;
+            // Skip future-dated jobs — they used to create future-week
+            // performance rows that pushed the dashboard ahead a week.
+            if (new Date(job.start_time) > now) continue;
 
             const wk = getWeekData(job.start_time);
             jobMap[job.id] = job;
@@ -80,6 +116,11 @@ export async function GET(request: NextRequest) {
             }
         }
 
+        // TEMP DIAGNOSTIC: log first invoice structure for field-name confirmation.
+        if (allInvoices[0]) {
+            console.log('[SYNC] FP invoice sample keys:', Object.keys(allInvoices[0]).sort().join(', '));
+        }
+
         for (const inv of allInvoices) {
             if (inv.id && processedInvoiceIds.has(inv.id)) continue;
             processedInvoiceIds.add(inv.id);
@@ -88,9 +129,13 @@ export async function GET(request: NextRequest) {
             if (!inv.created_at) continue;
 
             let techId = null;
+            // STRICT: only credit revenue when there's a direct work link.
+            // Removed author_id fallback — it was crediting whoever *created*
+            // the invoice (e.g. dispatcher / paperwork tech), inflating their
+            // revenue with work other techs did. This was the source of the
+            // ~3x revenue overcount.
             if (inv.assignments?.length) techId = inv.assignments[0].user_id;
             else if (inv.team_members?.length) techId = inv.team_members[0].id;
-            else if (inv.author_id) techId = inv.author_id;
             else if (inv.job_id && jobMap[inv.job_id]?.assignments?.length) techId = jobMap[inv.job_id].assignments[0].user_id;
 
             const tech = userMap[techId];
