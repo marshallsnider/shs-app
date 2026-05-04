@@ -68,11 +68,6 @@ export async function GET(request: NextRequest) {
 
         for (const job of jobs) {
             if (!job.start_time) continue;
-            // Only credit *completed* jobs. FP populates completed_at when
-            // a job moves to the completed status; scheduled / in-progress
-            // / cancelled jobs have it null. This is what excludes the
-            // padding that was inflating the per-tech job counts.
-            if (!job.completed_at) continue;
             // Skip future-dated jobs — they used to create future-week
             // performance rows that pushed the dashboard ahead a week.
             if (new Date(job.start_time) > now) continue;
