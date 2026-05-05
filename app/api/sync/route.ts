@@ -133,15 +133,11 @@ export async function GET(request: NextRequest) {
             if (inv.id && processedInvoiceIds.has(inv.id)) continue;
             processedInvoiceIds.add(inv.id);
 
-            if (!inv.created_at) continue;
+            // Skip invoices with no payments at all — nothing to credit.
+            const payments = Array.isArray(inv.payments) ? inv.payments : [];
+            if (!payments.length) continue;
 
-            // Only count amount actually paid. FP exposes amount_paid /
-            // amount_unpaid; previously we used inv.total which counted
-            // unpaid invoices in tech revenue (Vicky flagged this:
-            // "it pulled an invoice that isn't paid for Trevor").
-            const paid = parseFloat(inv.amount_paid ?? '0');
-            if (!paid) continue;
-
+            // Resolve the tech once per invoice — payments inherit attribution.
             let techId = null;
             let attributionPath: keyof typeof attributionStats | null = null;
 
@@ -164,17 +160,29 @@ export async function GET(request: NextRequest) {
             }
 
             const tech = userMap[techId];
-            if (tech) {
-                if (attributionPath) attributionStats[attributionPath]++;
-                techniciansProcessed.add(tech.name);
-                const wk = getWeekData(inv.created_at);
+            if (!tech) {
+                if (techId === null) attributionStats.unattributed_paid++;
+                continue;
+            }
+
+            if (attributionPath) attributionStats[attributionPath]++;
+            techniciansProcessed.add(tech.name);
+
+            // Credit each payment to the week it was RECEIVED, not the week
+            // the invoice was created. Vicky's collection-based mental model:
+            // an invoice created in Week 16 but paid in Week 18 belongs to
+            // Week 18 (when the cash actually came in). Naturally handles
+            // partial payments split across weeks.
+            for (const p of payments) {
+                const amt = parseFloat(p.amount ?? '0');
+                if (!amt) continue;
+                const paymentDate = p.payment_date || inv.last_payment_date || inv.created_at;
+                if (!paymentDate) continue;
+                const wk = getWeekData(paymentDate);
                 const key = `${tech.id}_${wk.year}_${wk.week}`;
                 if (!jobCounts[key]) jobCounts[key] = { tech, ...wk, count: 0, revenue: 0 };
-
-                jobCounts[key].revenue += paid;
-                totalRev += paid;
-            } else if (techId === null) {
-                attributionStats.unattributed_paid++;
+                jobCounts[key].revenue += amt;
+                totalRev += amt;
             }
         }
 
