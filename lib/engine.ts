@@ -12,11 +12,12 @@
  *   - $25 per 5-star Review
  *   - $25 per Club Membership
  * 
- * - Three Strikes Compliance System:
- *   - 0 infractions: Full bonus
- *   - 1st infraction: -$25 deduction, bonus still active
- *   - 2nd infraction: -$50 deduction (total -$75), bonus still active
- *   - 3rd+ infraction: Full disqualification, $0 bonus
+ * - Three Strikes Compliance System (deductions hit BASE bonus only —
+ *   SPIFs are always paid in full regardless of compliance status):
+ *   - 0 infractions: Full bonus + SPIFs
+ *   - 1st infraction: -$25 deduction from base, SPIFs unaffected
+ *   - 2nd infraction: -$50 additional (total -$75 from base), SPIFs unaffected
+ *   - 3rd+ infraction: Base bonus disqualified ($0), SPIFs still paid
  *   - Infraction count resets every Monday morning
  * 
  * - 10 Compliance Items:
@@ -129,16 +130,21 @@ export function calculateTotalBonus(
 ): BonusResult {
     const base = calculateBaseBonus(weeklyRevenue);
     const spifs = calculateSPIFs(reviews, memberships);
-    const grossBonus = base + spifs;
+
+    // POLICY: compliance deductions hit the BASE bonus only. SPIFs (review
+    // and membership payouts) are always paid regardless of compliance —
+    // they're a reward for an outcome the customer drove, not for tech
+    // behavior we're penalising.
 
     // If compliance is a simple boolean (legacy), use binary logic
     if (typeof compliance === 'boolean') {
+        const adjustedBase = compliance ? base : 0;
         return {
-            base, spifs,
-            total: compliance ? grossBonus : 0,
+            base: adjustedBase, spifs,
+            total: adjustedBase + spifs,
             eligible: compliance,
             infractionCount: compliance ? 0 : 10,
-            deductions: compliance ? 0 : grossBonus,
+            deductions: compliance ? 0 : base,
             strikeLevel: compliance ? 'clean' : 'disqualified',
         };
     }
@@ -148,33 +154,33 @@ export function calculateTotalBonus(
 
     if (infractions === 0) {
         return {
-            base, spifs, total: grossBonus, eligible: true,
+            base, spifs, total: base + spifs, eligible: true,
             infractionCount: 0, deductions: 0, strikeLevel: 'clean',
         };
     }
 
     if (infractions === 1) {
         const deduction = 25;
-        const total = Math.max(0, grossBonus - deduction);
+        const adjustedBase = Math.max(0, base - deduction);
         return {
-            base, spifs, total, eligible: true,
+            base: adjustedBase, spifs, total: adjustedBase + spifs, eligible: true,
             infractionCount: 1, deductions: deduction, strikeLevel: 'warning',
         };
     }
 
     if (infractions === 2) {
         const deduction = 75; // $25 + $50
-        const total = Math.max(0, grossBonus - deduction);
+        const adjustedBase = Math.max(0, base - deduction);
         return {
-            base, spifs, total, eligible: true,
+            base: adjustedBase, spifs, total: adjustedBase + spifs, eligible: true,
             infractionCount: 2, deductions: deduction, strikeLevel: 'danger',
         };
     }
 
-    // 3+ infractions: Full disqualification
+    // 3+ infractions: base bonus disqualified, SPIFs still paid in full
     return {
-        base: 0, spifs: 0, total: 0, eligible: false,
-        infractionCount: infractions, deductions: grossBonus, strikeLevel: 'disqualified',
+        base: 0, spifs, total: spifs, eligible: false,
+        infractionCount: infractions, deductions: base, strikeLevel: 'disqualified',
     };
 }
 

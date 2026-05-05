@@ -118,19 +118,42 @@ export async function GET(request: NextRequest) {
             }
         }
 
+        // TEMP DIAGNOSTIC: dump the structure of one assignment object so we
+        // can find FP's "primary tech" / "tech whose job it is" field.
+        // Vicky's policy is that the primary tech gets full credit, but we
+        // currently use assignments[0] (first listed) which may not be the
+        // primary. Remove once we've identified the right field.
+        const firstJobWithAssign = jobs.find(j => j.assignments?.length);
+        if (firstJobWithAssign) {
+            console.log('[SYNC-DIAG] Job assignment object keys:',
+                Object.keys(firstJobWithAssign.assignments[0]).sort().join(', '));
+            console.log('[SYNC-DIAG] Sample assignments (up to 3):',
+                JSON.stringify(firstJobWithAssign.assignments.slice(0, 3)));
+        }
+        const firstInvWithAssign = allInvoices.find(i => i.assignments?.length);
+        if (firstInvWithAssign) {
+            console.log('[SYNC-DIAG] Invoice assignment object keys:',
+                Object.keys(firstInvWithAssign.assignments[0]).sort().join(', '));
+        }
+
         for (const inv of allInvoices) {
             if (inv.id && processedInvoiceIds.has(inv.id)) continue;
             processedInvoiceIds.add(inv.id);
 
-            if (!inv.total || parseFloat(inv.total) === 0) continue;
             if (!inv.created_at) continue;
+
+            // Only count amount actually paid. FP exposes amount_paid /
+            // amount_unpaid; previously we used inv.total which counted
+            // unpaid invoices in tech revenue (Vicky flagged this:
+            // "it pulled an invoice that isn't paid for Trevor").
+            const paid = parseFloat(inv.amount_paid ?? '0');
+            if (!paid) continue;
 
             let techId = null;
             // STRICT: only credit revenue when there's a direct work link.
             // Removed author_id fallback — it was crediting whoever *created*
             // the invoice (e.g. dispatcher / paperwork tech), inflating their
-            // revenue with work other techs did. This was the source of the
-            // ~3x revenue overcount.
+            // revenue with work other techs did.
             if (inv.assignments?.length) techId = inv.assignments[0].user_id;
             else if (inv.team_members?.length) techId = inv.team_members[0].id;
             else if (inv.job_id && jobMap[inv.job_id]?.assignments?.length) techId = jobMap[inv.job_id].assignments[0].user_id;
@@ -142,8 +165,8 @@ export async function GET(request: NextRequest) {
                 const key = `${tech.id}_${wk.year}_${wk.week}`;
                 if (!jobCounts[key]) jobCounts[key] = { tech, ...wk, count: 0, revenue: 0 };
 
-                jobCounts[key].revenue += parseFloat(inv.total);
-                totalRev += parseFloat(inv.total);
+                jobCounts[key].revenue += paid;
+                totalRev += paid;
             }
         }
 
