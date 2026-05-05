@@ -137,20 +137,73 @@ export async function GET(request: NextRequest) {
         });
     }
 
-    // 3. Jobs — what's the status distribution? Are completed jobs included?
-    const jobsRes = await fetch(`${FIELD_PULSE_BASE_URL}/jobs?limit=50&page=1`, {
-        headers: { 'x-api-key': FIELD_PULSE_API_KEY },
-    });
-    const jobsJson: any = await jobsRes.json();
-    const jobs = jobsJson.response || jobsJson.data || [];
+    // 4. Jobs — same pagination depth as the real sync (10 pages × 50)
+    // so we see exactly what /api/sync sees. Then break down per tech.
+    const allJobs: any[] = [];
+    for (let page = 1; page <= 10; page++) {
+        try {
+            const r = await fetch(`${FIELD_PULSE_BASE_URL}/jobs?limit=50&page=${page}`, {
+                headers: { 'x-api-key': FIELD_PULSE_API_KEY },
+            });
+            const j: any = await r.json();
+            const batch = j.response || j.data || [];
+            if (!batch.length) break;
+            allJobs.push(...batch);
+            if (batch.length < 50) break;
+        } catch (e) { break; }
+    }
 
     const jobStatusDist: Record<string, number> = {};
     const jobCompletedAtCount = { not_null: 0, null: 0 };
-    for (const j of jobs) {
+    const now = new Date();
+    for (const j of allJobs) {
         const key = `status=${j.status} status_id=${j.status_id}`;
         jobStatusDist[key] = (jobStatusDist[key] || 0) + 1;
         if (j.completed_at) jobCompletedAtCount.not_null++;
         else jobCompletedAtCount.null++;
+    }
+
+    // 5. Per-tech job breakdown — for each active tech (matched by name),
+    // list every job in our pull where they appear in assignments. Flag
+    // why each job would be included or excluded by the current sync rules.
+    const targetTechs: Record<number, string> = {};
+    const dbTechNames = ['Trevor Pursel', 'Jarrod Judge', 'Kevin McFarland'];
+    for (const u of users) {
+        const fullName = `${u.first_name || ''} ${u.last_name || ''}`.trim();
+        if (dbTechNames.includes(fullName)) targetTechs[u.id] = fullName;
+    }
+
+    const jobsByTech: Record<string, any[]> = {};
+    for (const j of allJobs) {
+        if (!Array.isArray(j.assignments)) continue;
+        for (const a of j.assignments) {
+            const techName = targetTechs[a.user_id];
+            if (!techName) continue;
+            if (!jobsByTech[techName]) jobsByTech[techName] = [];
+            const startTimeDate = j.start_time ? new Date(j.start_time) : null;
+            const isFuture = startTimeDate ? startTimeDate > now : false;
+            const reasonExcluded =
+                !j.start_time ? 'no_start_time' :
+                isFuture ? 'future_start_time' :
+                null;
+            jobsByTech[techName].push({
+                id: j.id,
+                status: j.status,
+                status_id: j.status_id,
+                start_time: j.start_time,
+                end_time: j.end_time,
+                completed_at: j.completed_at,
+                deleted_at: j.deleted_at,
+                customer_id: j.customer_id,
+                assignment_count: j.assignments.length,
+                included_by_current_sync: reasonExcluded === null,
+                excluded_reason: reasonExcluded,
+            });
+        }
+    }
+    // Sort each tech's jobs by start_time desc for easier scanning
+    for (const k of Object.keys(jobsByTech)) {
+        jobsByTech[k].sort((a, b) => (b.start_time || '').localeCompare(a.start_time || ''));
     }
 
     return NextResponse.json({
@@ -160,6 +213,8 @@ export async function GET(request: NextRequest) {
         invoices_by_customer: customerInvoiceMap,
         job_status_distribution: jobStatusDist,
         job_completed_at_count: jobCompletedAtCount,
-        job_sample_count: jobs.length,
+        total_jobs_pulled: allJobs.length,
+        active_techs_resolved: targetTechs,
+        jobs_by_tech: jobsByTech,
     });
 }
