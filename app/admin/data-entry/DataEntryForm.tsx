@@ -193,10 +193,18 @@ export function DataEntryForm({ technicians }: { technicians: any[] }) {
                     <Card className="bg-gradient-to-br from-slate-800 to-slate-900 border-primary/30">
                         <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4">Calculated Preview</h3>
 
+                        {/*
+                          Compliance deducts from BASE only. SPIFs are paid in
+                          full no matter what. So the Total never gets struck
+                          through (it's what the tech takes home); the Base row
+                          carries the strikethrough when forfeited.
+                        */}
                         <div className="space-y-4">
                             <div className="flex justify-between items-center">
-                                <span className="text-slate-400">Base Bonus</span>
-                                <span className="font-mono text-white">${bonus.base.toLocaleString()}</span>
+                                <span className={bonus.strikeLevel === 'disqualified' ? 'text-slate-500' : 'text-slate-400'}>Base Bonus</span>
+                                <span className={`font-mono ${bonus.strikeLevel === 'disqualified' ? 'text-slate-500 line-through decoration-danger' : 'text-white'}`}>
+                                    ${bonus.base.toLocaleString()}
+                                </span>
                             </div>
                             <div className="flex justify-between items-center">
                                 <span className="text-slate-400">SPIFs</span>
@@ -207,7 +215,7 @@ export function DataEntryForm({ technicians }: { technicians: any[] }) {
 
                             <div className="flex justify-between items-center">
                                 <span className="text-white font-bold">Total Bonus</span>
-                                <span className={`font-mono font-bold text-xl ${bonus.eligible ? 'text-success' : 'text-danger line-through'}`}>
+                                <span className="font-mono font-bold text-xl text-success">
                                     ${bonus.total.toLocaleString()}
                                 </span>
                             </div>
@@ -221,17 +229,17 @@ export function DataEntryForm({ technicians }: { technicians: any[] }) {
 
                             {bonus.strikeLevel === 'disqualified' && (
                                 <div className="text-xs text-danger text-center bg-danger/10 p-2 rounded">
-                                    🚫 3+ Strikes — Bonus Disqualified
+                                    🚫 3+ Strikes — Base Bonus Forfeited (SPIFs still paid)
                                 </div>
                             )}
                             {bonus.strikeLevel === 'danger' && (
                                 <div className="text-xs text-orange-400 text-center bg-orange-400/10 p-2 rounded">
-                                    🔶 Strike 2 of 3 — One more and bonus is forfeited
+                                    🔶 Strike 2 of 3 — One more and base bonus is forfeited
                                 </div>
                             )}
                             {bonus.strikeLevel === 'warning' && (
                                 <div className="text-xs text-yellow-400 text-center bg-yellow-400/10 p-2 rounded">
-                                    ⚠️ Strike 1 of 3 — $25 deducted
+                                    ⚠️ Strike 1 of 3 — $25 deducted from base bonus
                                 </div>
                             )}
                         </div>
