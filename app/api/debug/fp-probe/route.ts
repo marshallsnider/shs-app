@@ -61,14 +61,31 @@ export async function GET(request: NextRequest) {
     ];
     const endpointProbes = await Promise.all(candidateEndpoints.map(ep => probe(`${ep}?limit=1`)));
 
-    // 2. Invoice payments deep-dive — looking for the "checks not registering" issue.
-    // Pull a batch of invoices, find ones with amount_unpaid > 0, dump their
-    // payments[] array structure to see if checks are present but ignored.
-    const invRes = await fetch(`${FIELD_PULSE_BASE_URL}/invoices?limit=50&page=1`, {
+    // 2. Build user_id -> name lookup (needed to interpret commission_recipient_id).
+    const usersRes = await fetch(`${FIELD_PULSE_BASE_URL}/users?limit=200`, {
         headers: { 'x-api-key': FIELD_PULSE_API_KEY },
     });
-    const invJson: any = await invRes.json();
-    const invoices = invJson.response || invJson.data || [];
+    const usersJson: any = await usersRes.json();
+    const users = usersJson.response || usersJson.data || [];
+    const userIdToName: Record<string, string> = {};
+    for (const u of users) {
+        userIdToName[u.id] = `${u.first_name || ''} ${u.last_name || ''}`.trim() || `id:${u.id}`;
+    }
+
+    // 3. Invoice deep-dive across MORE pages so we see things our sync sees.
+    const invoices: any[] = [];
+    for (let page = 1; page <= 4; page++) {
+        try {
+            const r = await fetch(`${FIELD_PULSE_BASE_URL}/invoices?limit=50&page=${page}`, {
+                headers: { 'x-api-key': FIELD_PULSE_API_KEY },
+            });
+            const j: any = await r.json();
+            const batch = j.response || j.data || [];
+            if (!batch.length) break;
+            invoices.push(...batch);
+            if (batch.length < 50) break;
+        } catch (e) { break; }
+    }
 
     const paymentSummary = {
         total_invoices: invoices.length,
@@ -110,9 +127,13 @@ export async function GET(request: NextRequest) {
             total: inv.total,
             amount_paid: inv.amount_paid,
             amount_unpaid: inv.amount_unpaid,
-            commission_recipient_id: inv.commission_recipient_id,
-            payment_count: payments.length,
+            created_at: inv.created_at,
+            invoiced_date: inv.invoiced_date,
+            first_payment_date: inv.first_payment_date,
             last_payment_date: inv.last_payment_date,
+            commission_recipient_id: inv.commission_recipient_id,
+            commission_recipient_name: inv.commission_recipient_id ? (userIdToName[inv.commission_recipient_id] || 'UNKNOWN_USER_ID') : null,
+            payment_methods: payments.map((p: any) => ({ method: p.method || p.payment_method, amount: p.amount, payment_date: p.payment_date })),
         });
     }
 
