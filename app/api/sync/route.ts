@@ -118,23 +118,16 @@ export async function GET(request: NextRequest) {
             }
         }
 
-        // TEMP DIAGNOSTIC: dump the structure of one assignment object so we
-        // can find FP's "primary tech" / "tech whose job it is" field.
-        // Vicky's policy is that the primary tech gets full credit, but we
-        // currently use assignments[0] (first listed) which may not be the
-        // primary. Remove once we've identified the right field.
-        const firstJobWithAssign = jobs.find(j => j.assignments?.length);
-        if (firstJobWithAssign) {
-            console.log('[SYNC-DIAG] Job assignment object keys:',
-                Object.keys(firstJobWithAssign.assignments[0]).sort().join(', '));
-            console.log('[SYNC-DIAG] Sample assignments (up to 3):',
-                JSON.stringify(firstJobWithAssign.assignments.slice(0, 3)));
-        }
-        const firstInvWithAssign = allInvoices.find(i => i.assignments?.length);
-        if (firstInvWithAssign) {
-            console.log('[SYNC-DIAG] Invoice assignment object keys:',
-                Object.keys(firstInvWithAssign.assignments[0]).sort().join(', '));
-        }
+        // Track how each invoice gets attributed for one round of logs.
+        // This is cheap (counters only) and confirms commission_recipient_id
+        // is the primary signal we expected; can be removed in a later cleanup.
+        const attributionStats = {
+            commission_recipient: 0,
+            invoice_assignments: 0,
+            invoice_team_members: 0,
+            linked_job_assignments: 0,
+            unattributed_paid: 0,
+        };
 
         for (const inv of allInvoices) {
             if (inv.id && processedInvoiceIds.has(inv.id)) continue;
@@ -150,16 +143,29 @@ export async function GET(request: NextRequest) {
             if (!paid) continue;
 
             let techId = null;
-            // STRICT: only credit revenue when there's a direct work link.
-            // Removed author_id fallback — it was crediting whoever *created*
-            // the invoice (e.g. dispatcher / paperwork tech), inflating their
-            // revenue with work other techs did.
-            if (inv.assignments?.length) techId = inv.assignments[0].user_id;
-            else if (inv.team_members?.length) techId = inv.team_members[0].id;
-            else if (inv.job_id && jobMap[inv.job_id]?.assignments?.length) techId = jobMap[inv.job_id].assignments[0].user_id;
+            let attributionPath: keyof typeof attributionStats | null = null;
+
+            // PRIMARY: commission_recipient_id — FP's explicit "tech who gets
+            // paid commission for this invoice." Matches Vicky's policy:
+            // "the tech whose job it is gets full credit." Use this first;
+            // fall back only when FP doesn't have it set.
+            if (inv.commission_recipient_id) {
+                techId = inv.commission_recipient_id;
+                attributionPath = 'commission_recipient';
+            } else if (inv.assignments?.length) {
+                techId = inv.assignments[0].user_id;
+                attributionPath = 'invoice_assignments';
+            } else if (inv.team_members?.length) {
+                techId = inv.team_members[0].id;
+                attributionPath = 'invoice_team_members';
+            } else if (inv.job_id && jobMap[inv.job_id]?.assignments?.length) {
+                techId = jobMap[inv.job_id].assignments[0].user_id;
+                attributionPath = 'linked_job_assignments';
+            }
 
             const tech = userMap[techId];
             if (tech) {
+                if (attributionPath) attributionStats[attributionPath]++;
                 techniciansProcessed.add(tech.name);
                 const wk = getWeekData(inv.created_at);
                 const key = `${tech.id}_${wk.year}_${wk.week}`;
@@ -167,8 +173,12 @@ export async function GET(request: NextRequest) {
 
                 jobCounts[key].revenue += paid;
                 totalRev += paid;
+            } else if (techId === null) {
+                attributionStats.unattributed_paid++;
             }
         }
+
+        console.log('[SYNC] Attribution distribution:', JSON.stringify(attributionStats));
 
         // 4. Update DB
         for (const key in jobCounts) {
