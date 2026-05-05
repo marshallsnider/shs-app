@@ -68,6 +68,7 @@ runTest("2 infractions", 2, countInfractions(twoStrikeCompliance));
 runTest("3 infractions", 3, countInfractions(threeStrikeCompliance));
 
 // Three Strikes Integration
+// Policy: deductions hit BASE only; SPIFs always paid in full.
 console.log("\nThree Strikes Tests:");
 
 const clean = calculateTotalBonus(8500, 3, 2, passingCompliance);
@@ -75,21 +76,31 @@ runTest("Clean: $8,500 -> base=300, spifs=125, total=425", 425, clean.total); //
 runTest("Clean: strikeLevel", 'clean', clean.strikeLevel);
 
 const strike1 = calculateTotalBonus(8500, 3, 2, oneStrikeCompliance);
-runTest("Strike 1: total = 425 - 25 = 400", 400, strike1.total); // base 300 + spifs 125 - 25
+runTest("Strike 1: base 300-25=275, spifs 125, total = 400", 400, strike1.total);
+runTest("Strike 1: spifs preserved", 125, strike1.spifs);
 runTest("Strike 1: strikeLevel", 'warning', strike1.strikeLevel);
 
 const strike2 = calculateTotalBonus(8500, 3, 2, twoStrikeCompliance);
-runTest("Strike 2: total = 425 - 75 = 350", 350, strike2.total); // base 300 + spifs 125 - 75
+runTest("Strike 2: base 300-75=225, spifs 125, total = 350", 350, strike2.total);
+runTest("Strike 2: spifs preserved", 125, strike2.spifs);
 runTest("Strike 2: strikeLevel", 'danger', strike2.strikeLevel);
 
 const strike3 = calculateTotalBonus(8500, 3, 2, threeStrikeCompliance);
-runTest("Strike 3: total = 0 (disqualified)", 0, strike3.total);
+runTest("Strike 3: base 0, spifs 125, total = 125 (SPIFs survive disqualification)", 125, strike3.total);
+runTest("Strike 3: base zeroed", 0, strike3.base);
+runTest("Strike 3: spifs preserved", 125, strike3.spifs);
 runTest("Strike 3: strikeLevel", 'disqualified', strike3.strikeLevel);
 
-// Legacy boolean test
+// Edge: low base can't absorb deduction — base floors at 0, SPIFs untouched.
+const lowBaseStrike1 = calculateTotalBonus(7000, 4, 0, oneStrikeCompliance);
+runTest("Low base ($7k = $75) + strike 1 ($25 ded): base 50, spifs 100, total = 150", 150, lowBaseStrike1.total);
+runTest("Low base + strike 1: spifs intact", 100, lowBaseStrike1.spifs);
+
+// Legacy boolean test — SPIFs still paid even when boolean compliance is false.
 const legacyPass = calculateTotalBonus(8500, 3, 2, true);
 runTest("Legacy true: total = 425", 425, legacyPass.total);
 const legacyFail = calculateTotalBonus(15000, 6, 4, false);
-runTest("Legacy false: total = 0", 0, legacyFail.total);
+runTest("Legacy false: base zeroed, spifs paid -> total = 250", 250, legacyFail.total);
+runTest("Legacy false: spifs preserved", 250, legacyFail.spifs);
 
 console.log("\nDone.");
