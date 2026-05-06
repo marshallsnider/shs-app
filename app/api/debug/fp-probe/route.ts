@@ -175,7 +175,7 @@ export async function GET(request: NextRequest) {
 
     // Build customer_id -> name lookup so we can match Vicky's by-name lists.
     const customerIdToName: Record<string, string> = {};
-    for (let page = 1; page <= 6; page++) {
+    for (let page = 1; page <= 30; page++) {
         try {
             const r = await fetch(`${FIELD_PULSE_BASE_URL}/customers?limit=100&page=${page}`, {
                 headers: { 'x-api-key': FIELD_PULSE_API_KEY },
@@ -229,26 +229,41 @@ export async function GET(request: NextRequest) {
     }
 
     // 6. For each name Vicky listed for Trevor's Week 18, find their
-    // customer record + all their jobs (regardless of who's assigned).
+    // customer record + ALL their jobs in our 500-job pull (regardless of
+    // assignee or week) — so we can see if the job exists at all.
     const vickyTrevorWk18Names = ['Christina Cox', 'Mike Wolfington', 'Karen Woodbyrne', 'Jeremy Jones', 'Joseph Cooks-Giles'];
     const vickyCustomerLookup: Record<string, any> = {};
     for (const name of vickyTrevorWk18Names) {
-        // Find by display name in our pulled customers
-        const matches = Object.entries(customerIdToName).filter(([_id, n]) =>
+        // Try matching against our pulled customers
+        let matches = Object.entries(customerIdToName).filter(([_id, n]) =>
             n.toLowerCase().includes(name.toLowerCase()) ||
             name.toLowerCase().includes(n.toLowerCase())
         );
+        // If not found in pulled customers, try a direct name search via FP.
         if (matches.length === 0) {
-            vickyCustomerLookup[name] = { found: false, note: 'not in customer pull (try increasing pages)' };
+            try {
+                const sr = await fetch(`${FIELD_PULSE_BASE_URL}/customers?search=${encodeURIComponent(name)}&limit=10`, {
+                    headers: { 'x-api-key': FIELD_PULSE_API_KEY },
+                });
+                const sj: any = await sr.json();
+                const sBatch = sj.response || sj.data || [];
+                for (const c of sBatch) {
+                    const nm = c.display_name || c.company_name || `${c.first_name || ''} ${c.last_name || ''}`.trim() || `id:${c.id}`;
+                    customerIdToName[c.id] = nm;
+                }
+                matches = Object.entries(customerIdToName).filter(([_id, n]) =>
+                    n.toLowerCase().includes(name.toLowerCase()) ||
+                    name.toLowerCase().includes(n.toLowerCase())
+                );
+            } catch (e) { /* ignore */ }
+        }
+        if (matches.length === 0) {
+            vickyCustomerLookup[name] = { found: false, note: 'not in customer pull or search' };
             continue;
         }
         const [custId, custName] = matches[0];
-        // Pull jobs for this customer that fall in 4/27-5/3
-        const wk18Start = new Date('2026-04-27T00:00:00Z');
-        const wk18End = new Date('2026-05-04T00:00:00Z');
-        const customerJobs = allJobs
+        const allJobsForCustomer = allJobs
             .filter(j => String(j.customer_id) === custId)
-            .filter(j => j.start_time && new Date(j.start_time) >= wk18Start && new Date(j.start_time) < wk18End)
             .map(j => ({
                 id: j.id,
                 start_time: j.start_time,
@@ -258,13 +273,14 @@ export async function GET(request: NextRequest) {
                 assignment_count: Array.isArray(j.assignments) ? j.assignments.length : 0,
                 assigned_user_ids: Array.isArray(j.assignments) ? j.assignments.map((a: any) => a.user_id) : [],
                 trevor_assigned: Array.isArray(j.assignments) ? j.assignments.some((a: any) => a.user_id === 234120) : false,
-            }));
+            }))
+            .sort((a, b) => (b.start_time || '').localeCompare(a.start_time || ''));
         vickyCustomerLookup[name] = {
             found: true,
             customer_id: custId,
             matched_to: custName,
-            wk18_jobs: customerJobs,
-            wk18_jobs_in_pull: customerJobs.length,
+            all_jobs_in_pull: allJobsForCustomer,
+            all_jobs_in_pull_count: allJobsForCustomer.length,
         };
     }
 
