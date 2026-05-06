@@ -173,6 +173,27 @@ export async function GET(request: NextRequest) {
         if (dbTechNames.includes(fullName)) targetTechs[u.id] = fullName;
     }
 
+    // Build customer_id -> name lookup so we can match Vicky's by-name lists.
+    const customerIdToName: Record<string, string> = {};
+    for (let page = 1; page <= 6; page++) {
+        try {
+            const r = await fetch(`${FIELD_PULSE_BASE_URL}/customers?limit=100&page=${page}`, {
+                headers: { 'x-api-key': FIELD_PULSE_API_KEY },
+            });
+            const j: any = await r.json();
+            const batch = j.response || j.data || [];
+            if (!batch.length) break;
+            for (const c of batch) {
+                const nm = c.display_name
+                    || c.company_name
+                    || `${c.first_name || ''} ${c.last_name || ''}`.trim()
+                    || `id:${c.id}`;
+                customerIdToName[c.id] = nm;
+            }
+            if (batch.length < 100) break;
+        } catch (e) { break; }
+    }
+
     const jobsByTech: Record<string, any[]> = {};
     for (const j of allJobs) {
         if (!Array.isArray(j.assignments)) continue;
@@ -195,6 +216,7 @@ export async function GET(request: NextRequest) {
                 completed_at: j.completed_at,
                 deleted_at: j.deleted_at,
                 customer_id: j.customer_id,
+                customer_name: customerIdToName[j.customer_id] || `unknown(${j.customer_id})`,
                 assignment_count: j.assignments.length,
                 included_by_current_sync: reasonExcluded === null,
                 excluded_reason: reasonExcluded,
@@ -206,6 +228,46 @@ export async function GET(request: NextRequest) {
         jobsByTech[k].sort((a, b) => (b.start_time || '').localeCompare(a.start_time || ''));
     }
 
+    // 6. For each name Vicky listed for Trevor's Week 18, find their
+    // customer record + all their jobs (regardless of who's assigned).
+    const vickyTrevorWk18Names = ['Christina Cox', 'Mike Wolfington', 'Karen Woodbyrne', 'Jeremy Jones', 'Joseph Cooks-Giles'];
+    const vickyCustomerLookup: Record<string, any> = {};
+    for (const name of vickyTrevorWk18Names) {
+        // Find by display name in our pulled customers
+        const matches = Object.entries(customerIdToName).filter(([_id, n]) =>
+            n.toLowerCase().includes(name.toLowerCase()) ||
+            name.toLowerCase().includes(n.toLowerCase())
+        );
+        if (matches.length === 0) {
+            vickyCustomerLookup[name] = { found: false, note: 'not in customer pull (try increasing pages)' };
+            continue;
+        }
+        const [custId, custName] = matches[0];
+        // Pull jobs for this customer that fall in 4/27-5/3
+        const wk18Start = new Date('2026-04-27T00:00:00Z');
+        const wk18End = new Date('2026-05-04T00:00:00Z');
+        const customerJobs = allJobs
+            .filter(j => String(j.customer_id) === custId)
+            .filter(j => j.start_time && new Date(j.start_time) >= wk18Start && new Date(j.start_time) < wk18End)
+            .map(j => ({
+                id: j.id,
+                start_time: j.start_time,
+                status: j.status,
+                status_id: j.status_id,
+                completed_at: j.completed_at,
+                assignment_count: Array.isArray(j.assignments) ? j.assignments.length : 0,
+                assigned_user_ids: Array.isArray(j.assignments) ? j.assignments.map((a: any) => a.user_id) : [],
+                trevor_assigned: Array.isArray(j.assignments) ? j.assignments.some((a: any) => a.user_id === 234120) : false,
+            }));
+        vickyCustomerLookup[name] = {
+            found: true,
+            customer_id: custId,
+            matched_to: custName,
+            wk18_jobs: customerJobs,
+            wk18_jobs_in_pull: customerJobs.length,
+        };
+    }
+
     return NextResponse.json({
         endpoint_probes: endpointProbes,
         invoice_payment_summary: paymentSummary,
@@ -215,6 +277,8 @@ export async function GET(request: NextRequest) {
         job_completed_at_count: jobCompletedAtCount,
         total_jobs_pulled: allJobs.length,
         active_techs_resolved: targetTechs,
+        total_customers_pulled: Object.keys(customerIdToName).length,
+        vicky_trevor_wk18_lookup: vickyCustomerLookup,
         jobs_by_tech: jobsByTech,
     });
 }
