@@ -91,6 +91,12 @@ model WeeklyPerformance {
   // Auditing
   lastModifiedBy String? // references Admin.id conceptually
 
+  // Set to true when an admin edits this row via the Data Entry form.
+  // The /api/sync FieldPulse refresh respects this flag and leaves
+  // jobsCompleted / totalRevenue alone for locked rows. Admin can
+  // unlock from the Data Entry form to resume auto-sync for the week.
+  manualOverride Boolean @default(false)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

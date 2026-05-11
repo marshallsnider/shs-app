@@ -10,6 +10,9 @@ export function DataEntryForm({ technicians }: { technicians: any[] }) {
     const [revenue, setRevenue] = useState(0);
     const [reviews, setReviews] = useState(0);
     const [memberships, setMemberships] = useState(0);
+    // Defaults to true — saving via this form should lock the row from being
+    // overwritten by the next FieldPulse sync. Admin can uncheck to release.
+    const [lockFromSync, setLockFromSync] = useState(true);
     const [isPending, startTransition] = useTransition();
     const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle');
     const [submitMessage, setSubmitMessage] = useState('');
@@ -48,6 +51,7 @@ export function DataEntryForm({ technicians }: { technicians: any[] }) {
                 setRevenue(0);
                 setReviews(0);
                 setMemberships(0);
+                setLockFromSync(true);
                 setCompliance({
                     vanCleanliness: true,
                     paperworkSubmitted: true,
@@ -173,6 +177,25 @@ export function DataEntryForm({ technicians }: { technicians: any[] }) {
                                 );
                             })}
                         </div>
+                    </Card>
+
+                    <Card className="space-y-2">
+                        <h3 className="text-lg font-bold text-white border-b border-white/10 pb-2">4. Sync Behavior</h3>
+                        <label className="flex items-start justify-between p-2 rounded bg-white/5 cursor-pointer hover:bg-white/10 transition-colors gap-4">
+                            <div className="flex-1">
+                                <span className="text-sm text-slate-200 font-medium">Lock this week from FieldPulse auto-sync</span>
+                                <p className="text-xs text-slate-400 mt-1">
+                                    Recommended. Keeps your manual edits to revenue and jobs through the next sync. Uncheck only if you want FieldPulse to refresh this row going forward.
+                                </p>
+                            </div>
+                            <input
+                                type="checkbox"
+                                name="lockFromSync"
+                                className="w-5 h-5 accent-primary rounded mt-1"
+                                checked={lockFromSync}
+                                onChange={() => setLockFromSync(v => !v)}
+                            />
+                        </label>
                     </Card>
 
                     <div className="flex justify-end pt-4">

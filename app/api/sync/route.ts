@@ -77,6 +77,50 @@ export async function GET(request: NextRequest) {
         }
         const jobs = Array.from(jobsById.values());
 
+        // 2b. Fetch Site Visits (separate FP entity — Vicky 5/6: "All of them
+        // were on the schedule for Week 18, but under Site Visits, not original
+        // jobs."). FP exposes these under /site-visits in some accounts and
+        // /site_visits in others; try both and use whichever returns data.
+        // Site visits get counted toward jobsCompleted for the assigned tech;
+        // revenue stays attached to invoices (via commission_recipient_id) so
+        // we don't double-count.
+        const siteVisitEndpoints = ['/site-visits', '/site_visits', '/sitevisits'];
+        let siteVisitEndpoint: string | null = null;
+        for (const ep of siteVisitEndpoints) {
+            try {
+                const probe = await fetchFP(`${ep}?limit=1`);
+                if (Array.isArray(probe)) {
+                    siteVisitEndpoint = ep;
+                    break;
+                }
+            } catch (e) {
+                // try next
+            }
+        }
+        const siteVisitsById = new Map<number, any>();
+        if (siteVisitEndpoint) {
+            for (let page = 1; page <= 10; page++) {
+                try {
+                    const batch = await fetchFP(`${siteVisitEndpoint}?limit=50&page=${page}`);
+                    if (!batch.length) break;
+                    let added = 0;
+                    for (const sv of batch) {
+                        if (sv.id && !siteVisitsById.has(sv.id)) {
+                            siteVisitsById.set(sv.id, sv);
+                            added++;
+                        }
+                    }
+                    if (added === 0) break;
+                    if (batch.length < 50) break;
+                } catch (e) {
+                    break;
+                }
+            }
+            console.log(`[SYNC] Site Visits endpoint=${siteVisitEndpoint} pulled=${siteVisitsById.size}`);
+        } else {
+            console.log('[SYNC] No Site Visits endpoint available on this FP account.');
+        }
+
         const jobCounts: Record<string, any> = {};
         const jobMap: Record<number, any> = {};
 
@@ -97,6 +141,27 @@ export async function GET(request: NextRequest) {
                         if (!jobCounts[key]) jobCounts[key] = { tech, ...wk, count: 0, revenue: 0 };
                         jobCounts[key].count++;
                     }
+                }
+            }
+        }
+
+        // Walk site visits the same way — they count toward jobsCompleted
+        // for the assigned tech. Revenue is NOT touched here; that comes
+        // through invoices below (commission_recipient_id attribution).
+        for (const sv of siteVisitsById.values()) {
+            const startTime = sv.start_time || sv.scheduled_at || sv.scheduled_start || sv.start_date;
+            if (!startTime) continue;
+            if (new Date(startTime) > now) continue;
+
+            const wk = getWeekData(startTime);
+            const assignments = sv.assignments || sv.team_members || (sv.user_id ? [{ user_id: sv.user_id }] : []);
+            for (const assign of (assignments as any[])) {
+                const userId = assign.user_id ?? assign.id;
+                const tech = userMap[userId];
+                if (tech) {
+                    const key = `${tech.id}_${wk.year}_${wk.week}`;
+                    if (!jobCounts[key]) jobCounts[key] = { tech, ...wk, count: 0, revenue: 0 };
+                    jobCounts[key].count++;
                 }
             }
         }
@@ -189,9 +254,14 @@ export async function GET(request: NextRequest) {
         console.log('[SYNC] Attribution distribution:', JSON.stringify(attributionStats));
 
         // 4. Update DB
+        // Respect the manualOverride flag — if an admin edited this row via
+        // the Data Entry form, the form will have set manualOverride=true and
+        // we leave jobsCompleted / totalRevenue alone. Rows that don't exist
+        // yet are created from FP data as before.
+        let lockedSkipped = 0;
         for (const key in jobCounts) {
             const item = jobCounts[key];
-            await prisma.weeklyPerformance.upsert({
+            const existing = await prisma.weeklyPerformance.findUnique({
                 where: {
                     technicianId_year_weekNumber: {
                         technicianId: item.tech.id,
@@ -199,23 +269,42 @@ export async function GET(request: NextRequest) {
                         weekNumber: item.week
                     }
                 },
-                update: {
+                select: { id: true, manualOverride: true }
+            });
+
+            if (!existing) {
+                await prisma.weeklyPerformance.create({
+                    data: {
+                        technicianId: item.tech.id,
+                        year: item.year,
+                        weekNumber: item.week,
+                        quarter: getQuarterFromWeekStart(item.year, item.week),
+                        startDate: item.startDate,
+                        endDate: item.endDate,
+                        jobsCompleted: item.count,
+                        totalRevenue: item.revenue,
+                        reviews: 0,
+                        memberships: 0
+                    }
+                });
+                continue;
+            }
+
+            if (existing.manualOverride) {
+                lockedSkipped++;
+                continue; // Admin-locked row — leave it alone.
+            }
+
+            await prisma.weeklyPerformance.update({
+                where: { id: existing.id },
+                data: {
                     jobsCompleted: item.count,
                     totalRevenue: item.revenue
-                },
-                create: {
-                    technicianId: item.tech.id,
-                    year: item.year,
-                    weekNumber: item.week,
-                    quarter: getQuarterFromWeekStart(item.year, item.week),
-                    startDate: item.startDate,
-                    endDate: item.endDate,
-                    jobsCompleted: item.count,
-                    totalRevenue: item.revenue,
-                    reviews: 0,
-                    memberships: 0
                 }
             });
+        }
+        if (lockedSkipped > 0) {
+            console.log(`[SYNC] Skipped ${lockedSkipped} admin-locked row(s).`);
         }
 
         // 5. Track Audit Log (only for admin-triggered syncs — cron has no adminId).

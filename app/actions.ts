@@ -196,6 +196,10 @@ export async function submitWeeklyPerformance(formData: FormData) {
     const jobs = Number(formData.get("jobs"));
     const reviews = Number(formData.get("reviews"));
     const memberships = Number(formData.get("memberships"));
+    // Lock checkbox — defaults to true (locked). If admin clears it, the
+    // row stays open to FP auto-sync and the next /api/sync run will refresh
+    // jobsCompleted / totalRevenue from FieldPulse.
+    const manualOverride = formData.get("lockFromSync") === "on";
 
     if (!weekStr || !technicianId) {
         throw new Error("Missing required fields");
@@ -240,6 +244,7 @@ export async function submitWeeklyPerformance(formData: FormData) {
             jobsCompleted: jobs,
             reviews: reviews,
             memberships: memberships,
+            manualOverride,
             // Compliance
             compliance: {
                 upsert: {
@@ -266,6 +271,7 @@ export async function submitWeeklyPerformance(formData: FormData) {
             jobsCompleted: jobs,
             reviews: reviews,
             memberships: memberships,
+            manualOverride,
             compliance: {
                 create: compliance
             },
