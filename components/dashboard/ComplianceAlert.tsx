@@ -1,7 +1,8 @@
 'use client';
 
-import { AlertTriangle, XCircle, ShieldAlert, ShieldCheck } from 'lucide-react';
+import { AlertTriangle, XCircle, ShieldAlert, ShieldCheck, ExternalLink } from 'lucide-react';
 import { ComplianceRecord, COMPLIANCE_LABELS, COMPLIANCE_REQUIREMENTS } from '@/lib/engine';
+import { getSopUrl } from '@/lib/compliance-sops';
 
 interface ComplianceAlertProps {
     compliance: ComplianceRecord;
@@ -70,7 +71,7 @@ export function ComplianceAlert({ compliance, infractionCount, deductions, strik
 
     const failingItems = COMPLIANCE_REQUIREMENTS
         .filter(req => compliance[req] !== true)
-        .map(key => COMPLIANCE_LABELS[key]);
+        .map(key => ({ key, label: COMPLIANCE_LABELS[key], sopUrl: getSopUrl(key) }));
 
     const Icon = config.icon;
 
@@ -124,11 +125,24 @@ export function ComplianceAlert({ compliance, infractionCount, deductions, strik
                 <div className="space-y-2">
                     {failingItems.map((item) => (
                         <div
-                            key={item}
+                            key={item.key}
                             className={`flex items-center gap-2 ${config.itemBg} rounded-lg px-3 py-2 border ${config.itemBorder}`}
                         >
                             <XCircle className={`w-4 h-4 ${config.itemIcon} flex-shrink-0`} />
-                            <span className={`${config.itemText} text-sm`}>{item}</span>
+                            {item.sopUrl ? (
+                                <a
+                                    href={item.sopUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className={`group inline-flex items-center gap-1.5 ${config.itemText} text-sm underline decoration-current/40 hover:decoration-current underline-offset-2 transition-colors`}
+                                    aria-label={`Open SOP for ${item.label}`}
+                                >
+                                    <span>{item.label}</span>
+                                    <ExternalLink className="w-3 h-3 opacity-70 group-hover:opacity-100" />
+                                </a>
+                            ) : (
+                                <span className={`${config.itemText} text-sm`}>{item.label}</span>
+                            )}
                         </div>
                     ))}
                 </div>

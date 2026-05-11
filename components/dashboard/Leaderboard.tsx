@@ -1,6 +1,7 @@
 import prisma from "@/lib/db";
 import { Trophy, Crown, Medal } from "lucide-react";
 import { Card } from "@/components/ui/Card";
+import { getPreviousWeek } from "@/lib/week";
 
 interface LeaderboardProps {
     currentTechId: string;
@@ -8,15 +9,28 @@ interface LeaderboardProps {
     weekNumber: number;
 }
 
-export async function Leaderboard({ currentTechId, year, weekNumber }: LeaderboardProps) {
+async function getRanked(year: number, weekNumber: number) {
     const performances = await prisma.weeklyPerformance.findMany({
         where: { year, weekNumber },
         include: { technician: true },
         orderBy: { totalRevenue: 'desc' },
     });
+    return performances.filter(p => p.technician.isActive);
+}
 
-    // Only show active techs
-    const ranked = performances.filter(p => p.technician.isActive);
+export async function Leaderboard({ currentTechId, year, weekNumber }: LeaderboardProps) {
+    // Try current week first. If no active tech has a performance row yet
+    // (typical at the top of a fresh week before Victoria runs Monday data
+    // entry or before FieldPulse sync creates rows), fall back to last week
+    // so the dashboard still shows ranking instead of going blank.
+    let ranked = await getRanked(year, weekNumber);
+    let isLastWeek = false;
+
+    if (ranked.length === 0) {
+        const prev = getPreviousWeek(year, weekNumber);
+        ranked = await getRanked(prev.year, prev.weekNumber);
+        isLastWeek = true;
+    }
 
     if (ranked.length === 0) {
         return null;
@@ -24,12 +38,20 @@ export async function Leaderboard({ currentTechId, year, weekNumber }: Leaderboa
 
     const medals = ['🥇', '🥈', '🥉'];
     const topRevenue = ranked[0]?.totalRevenue || 1;
+    const heading = isLastWeek ? "Last Week's Leaderboard" : 'Weekly Leaderboard';
 
     return (
         <Card className="w-full">
-            <div className="flex items-center gap-2 mb-4">
-                <Trophy className="w-5 h-5 text-yellow-400" />
-                <h3 className="text-lg font-bold text-white">Weekly Leaderboard</h3>
+            <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                    <Trophy className="w-5 h-5 text-yellow-400" />
+                    <h3 className="text-lg font-bold text-white">{heading}</h3>
+                </div>
+                {isLastWeek && (
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 bg-white/5 px-2 py-1 rounded-full">
+                        This week pending
+                    </span>
+                )}
             </div>
 
             <div className="space-y-2">

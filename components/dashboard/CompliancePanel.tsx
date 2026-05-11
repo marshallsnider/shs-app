@@ -1,6 +1,7 @@
-import { CheckCircle2, XCircle, AlertTriangle, Clock } from "lucide-react";
+import { CheckCircle2, XCircle, AlertTriangle, Clock, ExternalLink } from "lucide-react";
 import { Card } from "../ui/Card";
 import { ComplianceRecord, COMPLIANCE_LABELS, COMPLIANCE_REQUIREMENTS } from "@/lib/engine";
+import { getSopUrl } from "@/lib/compliance-sops";
 
 interface CompliancePanelProps {
     compliance: ComplianceRecord;
@@ -43,9 +44,23 @@ export function CompliancePanel({ compliance, isEligible, infractionCount, strik
                         {COMPLIANCE_REQUIREMENTS.map((key) => {
                             const label = COMPLIANCE_LABELS[key];
                             const pass = compliance[key] === true;
+                            const sopUrl = getSopUrl(key);
                             return (
                                 <div key={key} className="flex items-center justify-between p-2 rounded-lg bg-white/5">
-                                    <span className="text-sm font-medium text-slate-300">{label}</span>
+                                    {sopUrl ? (
+                                        <a
+                                            href={sopUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="group inline-flex items-center gap-1.5 text-sm font-medium text-slate-300 hover:text-white underline decoration-slate-600 hover:decoration-white underline-offset-2 transition-colors"
+                                            aria-label={`Open SOP for ${label}`}
+                                        >
+                                            <span>{label}</span>
+                                            <ExternalLink className="w-3 h-3 text-slate-500 group-hover:text-slate-300" />
+                                        </a>
+                                    ) : (
+                                        <span className="text-sm font-medium text-slate-300">{label}</span>
+                                    )}
                                     {pass ? (
                                         <CheckCircle2 className="w-5 h-5 text-success" />
                                     ) : (
