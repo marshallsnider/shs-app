@@ -4,6 +4,7 @@ import { Users, DollarSign, Award, AlertTriangle, FileText } from "lucide-react"
 import { SyncButton } from "@/components/admin/SyncButton";
 import { WeekPicker } from "@/components/admin/WeekPicker";
 import { getISOWeek } from "@/lib/week";
+import { isTestTech, TEST_TECH_NAMES } from "@/lib/test-accounts";
 
 export const dynamic = 'force-dynamic';
 
@@ -20,8 +21,9 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
     const currentYear = params.year ? parseInt(params.year) : latestYear;
     const currentWeek = params.week ? parseInt(params.week) : latestWeek;
 
-    // Fetch all performance records for this week
-    const weeklyData = await prisma.weeklyPerformance.findMany({
+    // Fetch all performance records for this week, then strip test accounts
+    // so company totals and the per-tech table reflect the real team only.
+    const allWeeklyData = await prisma.weeklyPerformance.findMany({
         where: {
             year: currentYear,
             weekNumber: currentWeek
@@ -31,10 +33,16 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
             compliance: true
         }
     });
+    const weeklyData = allWeeklyData.filter((p: any) => !isTestTech(p.technician?.name));
 
     // Aggregations
     const totalRevenue = weeklyData.reduce((sum: number, p: any) => sum + p.totalRevenue, 0);
-    const activeTechs = await prisma.technician.count({ where: { isActive: true } });
+    const activeTechs = await prisma.technician.count({
+        where: {
+            isActive: true,
+            name: { notIn: [...TEST_TECH_NAMES] }
+        }
+    });
     const totalBonuses = weeklyData.reduce((sum: number, p: any) => sum + p.totalBonus, 0);
 
     // Compliance Alerts involved searching for failures in the compliance relation

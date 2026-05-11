@@ -2,6 +2,7 @@ import { NextResponse, NextRequest } from 'next/server';
 import prisma from '@/lib/db';
 import { verifyAdminToken } from '@/lib/auth';
 import { getISOWeek, getWeekStartDate, getWeekEndDate, getQuarterFromWeekStart } from '@/lib/week';
+import { isTestTech } from '@/lib/test-accounts';
 
 const FIELD_PULSE_API_KEY = process.env.FIELD_PULSE_API_KEY;
 const FIELD_PULSE_BASE_URL = process.env.FIELD_PULSE_BASE_URL || "https://ywe3crmpll.execute-api.us-east-2.amazonaws.com/stage";
@@ -259,8 +260,18 @@ export async function GET(request: NextRequest) {
         // we leave jobsCompleted / totalRevenue alone. Rows that don't exist
         // yet are created from FP data as before.
         let lockedSkipped = 0;
+        let testSkipped = 0;
         for (const key in jobCounts) {
             const item = jobCounts[key];
+
+            // Test accounts (e.g. Marshall Snider) are excluded from the sync
+            // write loop. If somehow they show up in FieldPulse invoice data,
+            // we still do not write rows for them.
+            if (isTestTech(item.tech.name)) {
+                testSkipped++;
+                continue;
+            }
+
             const existing = await prisma.weeklyPerformance.findUnique({
                 where: {
                     technicianId_year_weekNumber: {
@@ -305,6 +316,9 @@ export async function GET(request: NextRequest) {
         }
         if (lockedSkipped > 0) {
             console.log(`[SYNC] Skipped ${lockedSkipped} admin-locked row(s).`);
+        }
+        if (testSkipped > 0) {
+            console.log(`[SYNC] Skipped ${testSkipped} test-account row(s).`);
         }
 
         // 5. Track Audit Log (only for admin-triggered syncs — cron has no adminId).

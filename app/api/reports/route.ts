@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { calculateTotalBonus, ComplianceRecord, COMPLIANCE_LABELS, COMPLIANCE_REQUIREMENTS, countInfractions } from '@/lib/engine';
 import { getISOWeek } from '@/lib/week';
+import { isTestTech } from '@/lib/test-accounts';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,7 +15,7 @@ export async function GET(request: Request) {
     const year = yearParam ? parseInt(yearParam) : current.year;
     const weekNumber = weekParam ? parseInt(weekParam) : current.weekNumber;
 
-    const performances = await prisma.weeklyPerformance.findMany({
+    const allPerformances = await prisma.weeklyPerformance.findMany({
         where: { year, weekNumber },
         include: {
             technician: true,
@@ -22,6 +23,7 @@ export async function GET(request: Request) {
         },
         orderBy: { totalRevenue: 'desc' },
     });
+    const performances = allPerformances.filter(p => !isTestTech(p.technician?.name));
 
     const formatter = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
 

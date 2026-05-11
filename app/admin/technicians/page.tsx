@@ -1,10 +1,11 @@
 import prisma from "@/lib/db";
 import { Card } from "@/components/ui/Card";
-import { Plus } from "lucide-react";
+import { Plus, FlaskConical } from "lucide-react";
 import { createTechnician } from "../../actions";
 import { Technician } from "@prisma/client";
 import { EditTechButton } from "@/components/admin/EditTechButton";
 import { ResetPasswordButton } from "@/components/admin/ResetPasswordButton";
+import { isTestTech } from "@/lib/test-accounts";
 
 export const dynamic = 'force-dynamic';
 
@@ -44,10 +45,16 @@ export default async function TechniciansPage() {
                                 <p className="text-xs text-slate-500 font-mono bg-white/5 px-1 py-0.5 rounded inline-block my-1 select-all hover:bg-white/10 cursor-pointer" title="Employee ID (Login)">
                                     {tech.employeeId || 'NO-ID'}
                                 </p>
-                                <div className={`flex items-center gap-2 mt-1`}>
+                                <div className={`flex items-center gap-2 mt-1 flex-wrap`}>
                                     <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold ${tech.isActive ? 'bg-success/20 text-success' : 'bg-slate-700 text-slate-400'}`}>
                                         {tech.isActive ? 'ACTIVE' : 'INACTIVE'}
                                     </span>
+                                    {isTestTech(tech.name) && (
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30" title="Test account: excluded from leaderboard, admin totals, weekly reports, and FieldPulse sync writes">
+                                            <FlaskConical className="w-2.5 h-2.5" />
+                                            TEST
+                                        </span>
+                                    )}
                                     <span className="text-[10px] text-slate-500">Joined {tech.startDate.toLocaleDateString()}</span>
                                 </div>
                                 <div className="mt-1">

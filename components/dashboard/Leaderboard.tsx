@@ -2,6 +2,7 @@ import prisma from "@/lib/db";
 import { Trophy, Crown, Medal } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { getPreviousWeek } from "@/lib/week";
+import { isTestTech } from "@/lib/test-accounts";
 
 interface LeaderboardProps {
     currentTechId: string;
@@ -15,7 +16,7 @@ async function getRanked(year: number, weekNumber: number) {
         include: { technician: true },
         orderBy: { totalRevenue: 'desc' },
     });
-    return performances.filter(p => p.technician.isActive);
+    return performances.filter(p => p.technician.isActive && !isTestTech(p.technician.name));
 }
 
 export async function Leaderboard({ currentTechId, year, weekNumber }: LeaderboardProps) {
