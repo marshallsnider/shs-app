@@ -3,6 +3,7 @@ import prisma from '@/lib/db';
 import { verifyAdminToken } from '@/lib/auth';
 import { getISOWeek, getWeekStartDate, getWeekEndDate, getQuarterFromWeekStart } from '@/lib/week';
 import { isTestTech } from '@/lib/test-accounts';
+import { isCommercialCustomer, isFinalizedInvoice, resolveCommercialTech, COMMERCIAL_RECOGNITION_START } from '@/lib/commercial-accounts';
 
 const FIELD_PULSE_API_KEY = process.env.FIELD_PULSE_API_KEY;
 const FIELD_PULSE_BASE_URL = process.env.FIELD_PULSE_BASE_URL || "https://ywe3crmpll.execute-api.us-east-2.amazonaws.com/stage";
@@ -199,7 +200,43 @@ export async function GET(request: NextRequest) {
             if (inv.id && processedInvoiceIds.has(inv.id)) continue;
             processedInvoiceIds.add(inv.id);
 
-            // Skip invoices with no payments at all — nothing to credit.
+            // --- COMMERCIAL / NET-TERMS ACCOUNTS ---
+            // Qmerit, Vixxo, Treehouse, NJ Glass & Metal, Bluewater Facility
+            // invoice now and pay weeks later through AP. Recognize the pre-tax
+            // subtotal in the week the invoice was FINALIZED (invoiced_date),
+            // regardless of payment, and never fall through to the payment
+            // crediting below — otherwise the same revenue counts twice when
+            // the AP check later lands. Handled before the standard attribution
+            // because the commission recipient on these accounts is usually
+            // dispatch/office, not the field tech. Credit goes to the tech who
+            // DID THE WORK (the linked job's field tech). Identified by
+            // FieldPulse's related-customer (parent) link, the relationship
+            // Victoria maintains. Recognized from COMMERCIAL_RECOGNITION_START
+            // forward only. Per Victoria (2026-06-08): these count toward bonus.
+            if (isCommercialCustomer(inv.customer)) {
+                const invoicedDate: string | undefined = inv.invoiced_date;
+                if (
+                    isFinalizedInvoice(inv) &&
+                    invoicedDate &&
+                    invoicedDate >= COMMERCIAL_RECOGNITION_START
+                ) {
+                    const commercialTech = resolveCommercialTech(inv, jobMap, userMap);
+                    const amt = parseFloat(inv.subtotal ?? inv.total ?? '0');
+                    if (commercialTech && amt) {
+                        attributionStats.commission_recipient++;
+                        techniciansProcessed.add(commercialTech.name);
+                        const wk = getWeekData(invoicedDate);
+                        const key = `${commercialTech.id}_${wk.year}_${wk.week}`;
+                        if (!jobCounts[key]) jobCounts[key] = { tech: commercialTech, ...wk, count: 0, revenue: 0 };
+                        jobCounts[key].revenue += amt;
+                        totalRev += amt;
+                    }
+                }
+                continue;
+            }
+
+            // --- STANDARD (residential, cash-on-completion) ---
+            // Skip invoices with no payments at all — nothing to credit yet.
             const payments = Array.isArray(inv.payments) ? inv.payments : [];
             if (!payments.length) continue;
 
