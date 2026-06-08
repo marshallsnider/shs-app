@@ -226,12 +226,12 @@ export function DataEntryForm({ technicians }: { technicians: any[] }) {
                             <div className="flex justify-between items-center">
                                 <span className={bonus.strikeLevel === 'disqualified' ? 'text-slate-500' : 'text-slate-400'}>Base Bonus</span>
                                 <span className={`font-mono ${bonus.strikeLevel === 'disqualified' ? 'text-slate-500 line-through decoration-danger' : 'text-white'}`}>
-                                    ${bonus.base.toLocaleString()}
+                                    ${bonus.base.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                 </span>
                             </div>
                             <div className="flex justify-between items-center">
                                 <span className="text-slate-400">SPIFs</span>
-                                <span className="font-mono text-white">${bonus.spifs.toLocaleString()}</span>
+                                <span className="font-mono text-white">${bonus.spifs.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                             </div>
 
                             <div className="h-px bg-white/10 my-2" />
@@ -239,7 +239,7 @@ export function DataEntryForm({ technicians }: { technicians: any[] }) {
                             <div className="flex justify-between items-center">
                                 <span className="text-white font-bold">Total Bonus</span>
                                 <span className="font-mono font-bold text-xl text-success">
-                                    ${bonus.total.toLocaleString()}
+                                    ${bonus.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                 </span>
                             </div>
 

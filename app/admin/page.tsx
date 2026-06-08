@@ -62,7 +62,7 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
         )
     );
 
-    const formatter = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+    const formatter = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
     return (
         <div>

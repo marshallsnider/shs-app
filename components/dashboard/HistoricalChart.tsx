@@ -18,7 +18,7 @@ export function HistoricalChart({ weeks, currentWeek }: HistoricalChartProps) {
     if (weeks.length === 0) return null;
 
     const maxRevenue = Math.max(...weeks.map(w => w.revenue), 1);
-    const formatter = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+    const formatter = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
     return (
         <Card className="w-full">

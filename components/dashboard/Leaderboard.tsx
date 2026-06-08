@@ -93,7 +93,7 @@ export async function Leaderboard({ currentTechId, year, weekNumber }: Leaderboa
                                         {isCurrentUser ? `${p.technician.name} (You)` : p.technician.name}
                                     </span>
                                     <span className="text-sm font-bold text-white ml-2 flex-shrink-0">
-                                        ${p.totalRevenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                                        ${p.totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                     </span>
                                 </div>
 

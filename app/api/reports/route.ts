@@ -25,7 +25,7 @@ export async function GET(request: Request) {
     });
     const performances = allPerformances.filter(p => !isTestTech(p.technician?.name));
 
-    const formatter = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+    const formatter = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
     const totalRevenue = performances.reduce((s, p) => s + p.totalRevenue, 0);
     const totalJobs = performances.reduce((s, p) => s + p.jobsCompleted, 0);

@@ -15,7 +15,7 @@ function getNextTierMessage(revenue: number): string | null {
 }
 
 export function BonusCalculator({ bonus, potential, revenue = 0 }: BonusCalculatorProps) {
-    const formatter = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+    const formatter = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const nextTier = getNextTierMessage(revenue);
 
     // Compliance only ever zeros the BASE bonus. SPIFs are always paid in

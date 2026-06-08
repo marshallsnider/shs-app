@@ -119,7 +119,7 @@ export default async function Dashboard() {
   };
 
   const bonus = calculateTotalBonus(revenue, reviews, memberships, complianceRecord);
-  const formatter = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+  const formatter = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   return (
     <main id="top" className="min-h-screen px-4 py-6 pb-20 max-w-md mx-auto relative overflow-hidden">

@@ -25,11 +25,14 @@ export const COMPLIANCE_SOP_URLS: Record<string, string> = {
         'https://drive.google.com/file/d/1kf4254f8XHNFIzANg62wmyaxmEgyrhQP/view',
     noComplaints:
         'https://drive.google.com/file/d/1NGR_iYZSMqLXjSY2fGayrZUXoocvVyM_/view',
-    // noBadDriving: pending Safe Driving & Vehicle Conduct SOP approval (May 12 L10)
-    // drugScreening: pending Drug Screening Compliance SOP approval (May 12 L10)
+    noBadDriving:
+        'https://docs.google.com/document/d/1S_YdWzm7Jo_pOvVKMVbXkoRaRZQMbGwYIqBccPyE_fw/edit',
+    drugScreening:
+        'https://docs.google.com/document/d/1elZozdsRsY52Pqc5AH1Jsc37M-Nl4ngthe-awpkfBzw/edit',
     noOshaViolations:
         'https://drive.google.com/file/d/1n4V3iiyCubjmJO9LTsMZ8DjhdJau-qEg/view',
-    // paceTraining: pending PACE Sales Training Proficiency SOP approval (May 12 L10)
+    paceTraining:
+        'https://docs.google.com/document/d/1MrwbqTEjDNRsbhJjB6eo7WRY8a2XKzF50ClVKGfuKsI/edit',
     dressCode:
         'https://docs.google.com/document/d/1p9r6QYeXiQqhrjUWOjgfk5seMR9YF20OwmjfE_cm--Y/edit',
 };

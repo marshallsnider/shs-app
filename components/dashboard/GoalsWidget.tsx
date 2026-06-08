@@ -20,7 +20,7 @@ export function GoalsWidget({
     const format = (val: number) => new Intl.NumberFormat('en-US', {
         style: 'currency',
         currency: 'USD',
-        maximumFractionDigits: 0
+        minimumFractionDigits: 2, maximumFractionDigits: 2
     }).format(val);
 
     const [isEditing, setIsEditing] = useState(false);
