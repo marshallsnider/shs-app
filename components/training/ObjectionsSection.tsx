@@ -89,7 +89,13 @@ function ReadingBlocks({ blocks }: { blocks: Block[] }) {
   );
 }
 
-export function ObjectionsSection({ passedSlugs }: { passedSlugs: string[] }) {
+export function ObjectionsSection({
+  passedSlugs,
+  hideHeader = false,
+}: {
+  passedSlugs: string[];
+  hideHeader?: boolean;
+}) {
   const [passed, setPassed] = useState<Set<string>>(new Set(passedSlugs));
   const [view, setView] = useState<View>({ screen: 'list' });
   const [, startTransition] = useTransition();
@@ -163,13 +169,17 @@ export function ObjectionsSection({ passedSlugs }: { passedSlugs: string[] }) {
   if (view.screen === 'list') {
     return (
       <div className="relative z-10">
-        <div className="flex items-center gap-2 mb-1 mt-2">
-          <Shield className="w-5 h-5 text-primary-light" />
-          <h2 className="text-lg font-bold text-white">Objections</h2>
-        </div>
-        <p className="text-sm text-slate-400 mb-4">
-          Three reps to lock each one in.
-        </p>
+        {!hideHeader && (
+          <>
+            <div className="flex items-center gap-2 mb-1 mt-2">
+              <Shield className="w-5 h-5 text-primary-light" />
+              <h2 className="text-lg font-bold text-white">Objections</h2>
+            </div>
+            <p className="text-sm text-slate-400 mb-4">
+              Three reps to lock each one in.
+            </p>
+          </>
+        )}
 
         {/* loop legend */}
         <div className="grid grid-cols-3 gap-2 mb-4">

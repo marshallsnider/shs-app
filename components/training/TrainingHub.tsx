@@ -1,11 +1,13 @@
 'use client';
 
 import { useState } from 'react';
+import { Target, Shield } from 'lucide-react';
 import { PhaseCard } from './PhaseCard';
 import { FullQuizCard } from './FullQuizCard';
 import { QuizFlow } from './QuizFlow';
 import { PHASES, type Phase } from '@/lib/training';
 import { ObjectionsSection } from './ObjectionsSection';
+import { CollapsibleSection } from './CollapsibleSection';
 
 interface PhaseInfo {
   phase: string;
@@ -43,39 +45,52 @@ export function TrainingHub({
 
   return (
     <div className="relative z-10 space-y-4">
-      {/* Phase Cards */}
-      <div className="grid grid-cols-2 gap-3">
-        {phaseData.map((pd) => (
-          <PhaseCard
-            key={pd.phase}
-            phase={pd.phase as Phase}
-            passCount={pd.passCount}
-            mastered={pd.mastered}
-            weekAttempt={pd.weekAttempt}
-            onStart={() => setActiveQuiz(pd.phase)}
-          />
-        ))}
-      </div>
+      {/* PACE Training (collapsible) */}
+      <CollapsibleSection
+        icon={<Target className="w-5 h-5" />}
+        title="PACE Training"
+        summary="4 phases · Full PACE Quiz"
+      >
+        <div className="space-y-4">
+          {/* Phase Cards */}
+          <div className="grid grid-cols-2 gap-3">
+            {phaseData.map((pd) => (
+              <PhaseCard
+                key={pd.phase}
+                phase={pd.phase as Phase}
+                passCount={pd.passCount}
+                mastered={pd.mastered}
+                weekAttempt={pd.weekAttempt}
+                onStart={() => setActiveQuiz(pd.phase)}
+              />
+            ))}
+          </div>
 
-      {/* Full Quiz Card */}
-      <FullQuizCard
-        weekAttempt={fullQuizAttempt}
-        onStart={() => setActiveQuiz('FULL')}
-      />
+          {/* Full Quiz Card */}
+          <FullQuizCard
+            weekAttempt={fullQuizAttempt}
+            onStart={() => setActiveQuiz('FULL')}
+          />
+        </div>
+      </CollapsibleSection>
+
+      {/* Objections (collapsible) */}
+      <CollapsibleSection
+        icon={<Shield className="w-5 h-5" />}
+        title="Objections"
+        summary="6 objections · 3 reps each"
+      >
+        <ObjectionsSection passedSlugs={objectionPassed} hideHeader />
+      </CollapsibleSection>
 
       {/* Streak */}
       {streak > 0 && (
-        <div className="text-center text-sm text-slate-400 mt-4">
+        <div className="text-center text-sm text-slate-400">
           {streak >= 4
             ? `${streak} weeks strong. Consistency wins.`
             : `${streak} week streak. Keep it going.`}
         </div>
       )}
-
-      {/* Objections (Sales) */}
-      <div className="pt-6 mt-6 border-t border-white/10">
-        <ObjectionsSection passedSlugs={objectionPassed} />
-      </div>
     </div>
   );
 }
