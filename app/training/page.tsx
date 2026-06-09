@@ -77,6 +77,19 @@ export default async function TrainingPage() {
 
   const fullQuizAttempt = weekAttempts.find((a) => a.phase === 'FULL');
 
+  // Objections (Sales): which objection modules has this tech passed (ever)?
+  const objectionAttempts = await prisma.quizAttempt.findMany({
+    where: {
+      technicianId: techId,
+      passed: true,
+      phase: { startsWith: 'OBJ:' },
+    },
+    select: { phase: true },
+  });
+  const objectionPassed = Array.from(
+    new Set(objectionAttempts.map((a) => a.phase.split(':')[1]).filter(Boolean))
+  );
+
   return (
     <main className="min-h-screen px-4 py-6 pb-20 max-w-md mx-auto relative overflow-hidden">
       {/* Background Decor */}
@@ -122,6 +135,7 @@ export default async function TrainingPage() {
         }
         techName={tech.name}
         streak={tech.currentStreak}
+        objectionPassed={objectionPassed}
       />
 
       {/* Bottom Nav */}

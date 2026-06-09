@@ -14,6 +14,7 @@ import {
   type ClientQuestion,
 } from '@/lib/training';
 import { revalidatePath } from 'next/cache';
+import { getObjectionModule } from '@/lib/objections';
 
 async function getTechId(): Promise<string | null> {
   const cookieStore = await cookies();
@@ -255,3 +256,105 @@ export async function submitQuiz(
     badgesEarned,
   };
 }
+
+// --- Objections (Sales) ---
+// Objection questions live under phase = "OBJECTION" with a topic (slug).
+// They are kept separate from PACE phase and FULL quizzes by design, so they
+// never appear in those question pools.
+
+const OBJ_XP = 50;
+
+function objPhaseKey(slug: string): string {
+  return `OBJ:${slug}`;
+}
+
+export async function startObjectionQuiz(
+  slug: string
+): Promise<{ questions: ClientQuestion[] } | { error: string }> {
+  const techId = await getTechId();
+  if (!techId) return { error: 'Not logged in' };
+  if (!getObjectionModule(slug)) return { error: 'Unknown objection' };
+
+  const objectionQs = (await prisma.quizQuestion.findMany({
+    where: { phase: 'OBJECTION', topic: slug },
+  })) as QuizQuestionData[];
+
+  if (objectionQs.length === 0) {
+    return { error: 'No questions found for this objection yet' };
+  }
+
+  // Shuffle and cap at 5
+  const shuffled = [...objectionQs];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  const selected = shuffled.slice(0, 5);
+
+  return { questions: selected.map(stripAnswers) };
+}
+
+export interface ObjectionResult {
+  score: number;
+  total: number;
+  passed: boolean;
+  xpEarned: number;
+  details: {
+    questionId: string;
+    selected: string;
+    correct: string;
+    isCorrect: boolean;
+    explanation: string;
+  }[];
+}
+
+export async function submitObjectionQuiz(
+  slug: string,
+  answers: { questionId: string; selected: string }[]
+): Promise<ObjectionResult | { error: string }> {
+  const techId = await getTechId();
+  if (!techId) return { error: 'Not logged in' };
+  if (!getObjectionModule(slug)) return { error: 'Unknown objection' };
+
+  const { year, weekNumber } = getISOWeek(new Date());
+  const phaseKey = objPhaseKey(slug);
+
+  const questionIds = answers.map((a) => a.questionId);
+  const questions = (await prisma.quizQuestion.findMany({
+    where: { id: { in: questionIds } },
+  })) as QuizQuestionData[];
+
+  const result = gradeQuiz(answers, questions, false);
+
+  // Only award XP the first time this objection is passed (ever).
+  const priorPass = await prisma.quizAttempt.findFirst({
+    where: { technicianId: techId, phase: phaseKey, passed: true },
+  });
+  const xpToAward = result.passed && !priorPass ? OBJ_XP : 0;
+
+  await prisma.quizAttempt.create({
+    data: {
+      technicianId: techId,
+      year,
+      weekNumber,
+      phase: phaseKey,
+      score: result.score,
+      total: result.total,
+      xpEarned: xpToAward,
+      passed: result.passed,
+      answersJson: JSON.stringify(result.details),
+    },
+  });
+
+  revalidatePath('/training');
+  revalidatePath('/');
+
+  return {
+    score: result.score,
+    total: result.total,
+    passed: result.passed,
+    xpEarned: xpToAward,
+    details: result.details,
+  };
+}
+

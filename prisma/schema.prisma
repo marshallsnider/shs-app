@@ -152,7 +152,8 @@ model AuditLog {
 
 model QuizQuestion {
   id          String @id @default(uuid())
-  phase       String // "PREPARE" | "ARRIVE" | "CONNECT" | "EXECUTE"
+  phase       String // "PREPARE" | "ARRIVE" | "CONNECT" | "EXECUTE" | "OBJECTION"
+  topic       String? // for OBJECTION phase: "price" | "think" | "spouse" | "quotes" | "wait" | "estimate"
   question    String
   optionA     String
   optionB     String
