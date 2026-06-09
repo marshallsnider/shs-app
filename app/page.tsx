@@ -15,6 +15,7 @@ import { ComplianceAlert } from "@/components/dashboard/ComplianceAlert";
 import { Leaderboard } from "@/components/dashboard/Leaderboard";
 import { HistoricalChart } from "@/components/dashboard/HistoricalChart";
 import { MilestoneToast } from "@/components/dashboard/MilestoneToast";
+import { PushNotifications } from "@/components/PushNotifications";
 import { logoutTechnician } from "@/app/actions";
 import { ChangePassword } from "@/components/dashboard/ChangePassword";
 import { getISOWeek, getPreviousWeek } from "@/lib/week";
@@ -123,6 +124,9 @@ export default async function Dashboard() {
 
   return (
     <main id="top" className="min-h-screen px-4 py-6 pb-20 max-w-md mx-auto relative overflow-hidden">
+      {/* Push notification setup (registers SW, asks permission once, syncs subscription) */}
+      <PushNotifications technicianId={tech.id} />
+
       {/* Milestone Toast */}
       <MilestoneToast revenue={revenue} techName={tech.name} year={year} weekNumber={weekNumber} />
 
