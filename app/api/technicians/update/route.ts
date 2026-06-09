@@ -1,8 +1,16 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import prisma from '@/lib/db';
+import { verifyAdminToken } from '@/lib/auth';
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
     try {
+        // Require a valid admin session (defense-in-depth alongside middleware).
+        const adminToken = request.cookies.get('shs_admin_token')?.value;
+        const caller = adminToken ? await verifyAdminToken(adminToken) : null;
+        if (!caller) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
         const body = await request.json();
         const { id, name, employeeId, isActive } = body;
 
@@ -37,6 +45,6 @@ export async function POST(request: Request) {
         return NextResponse.json({ success: true, technician: updated });
     } catch (error: any) {
         console.error('Update tech error:', error);
-        return NextResponse.json({ error: error.message || 'Failed to update' }, { status: 500 });
+        return NextResponse.json({ error: 'Failed to update' }, { status: 500 });
     }
 }

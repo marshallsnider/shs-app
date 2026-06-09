@@ -18,7 +18,7 @@ async function main() {
 
     if (existing) {
         console.log("Admin account for Marshall already exists. Updating password to match .env.local...");
-        const hash = await bcrypt.hash(password, 10);
+        const hash = await bcrypt.hash(password, 12);
         await prisma.admin.update({
             where: { email },
             data: { passwordHash: hash, role: "SUPER_ADMIN" }
@@ -29,7 +29,7 @@ async function main() {
 
     // Create new admin
     console.log("Creating super admin account for Marshall...");
-    const hash = await bcrypt.hash(password, 10);
+    const hash = await bcrypt.hash(password, 12);
 
     await prisma.admin.create({
         data: {

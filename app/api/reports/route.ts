@@ -1,12 +1,31 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import prisma from '@/lib/db';
+import { verifyAdminToken } from '@/lib/auth';
 import { calculateTotalBonus, ComplianceRecord, COMPLIANCE_LABELS, COMPLIANCE_REQUIREMENTS, countInfractions } from '@/lib/engine';
 import { getISOWeek } from '@/lib/week';
 import { isTestTech } from '@/lib/test-accounts';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(request: Request) {
+// Escape user-influenced values before interpolating into the HTML report,
+// to prevent stored XSS (e.g. a technician name containing HTML/script).
+function escapeHtml(value: unknown): string {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+export async function GET(request: NextRequest) {
+    // Require a valid admin session — this returns a confidential management report.
+    const adminToken = request.cookies.get('shs_admin_token')?.value;
+    const caller = adminToken ? await verifyAdminToken(adminToken) : null;
+    if (!caller) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const { searchParams } = new URL(request.url);
     const yearParam = searchParams.get('year');
     const weekParam = searchParams.get('week');
@@ -119,7 +138,7 @@ export async function GET(request: Request) {
         return `
                         <tr class="${idx === 0 ? 'rank-1' : ''}">
                             <td>${idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `#${idx + 1}`}</td>
-                            <td><strong>${p.technician.name}</strong></td>
+                            <td><strong>${escapeHtml(p.technician.name)}</strong></td>
                             <td>${formatter.format(p.totalRevenue)}</td>
                             <td>${p.jobsCompleted}</td>
                             <td>${p.reviews}</td>

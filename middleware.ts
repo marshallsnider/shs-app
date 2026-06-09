@@ -2,25 +2,36 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { verifyAdminToken } from './lib/auth';
 
+// API routes that must stay reachable WITHOUT an admin session:
+// - /api/admin-auth: the login endpoint itself (public by design).
+// - /api/sync: authenticates itself in-handler (Vercel cron Bearer OR admin cookie),
+//   so middleware must let it through or the nightly cron would be blocked.
+const PUBLIC_API_ROUTES = ['/api/admin-auth', '/api/sync'];
+
 export async function middleware(request: NextRequest) {
     const { pathname } = request.nextUrl;
 
-    // Protect /admin routes (but not /admin-login)
+    // Protect /admin pages (matcher excludes /admin-login).
     if (pathname.startsWith('/admin')) {
         const token = request.cookies.get('shs_admin_token')?.value;
-
-        if (!token) {
-            return redirectToLogin(request);
-        }
-
-        const payload = await verifyAdminToken(token);
+        const payload = token ? await verifyAdminToken(token) : null;
 
         if (!payload) {
             return redirectToLogin(request);
         }
+    }
 
-        // Add admin info to headers so server components/actions can read it without decoding again if they wanted to,
-        // but server actions can also just read the cookie directly.
+    // Protect API routes, except the ones that handle their own auth.
+    if (
+        pathname.startsWith('/api') &&
+        !PUBLIC_API_ROUTES.some((p) => pathname === p || pathname.startsWith(p + '/'))
+    ) {
+        const token = request.cookies.get('shs_admin_token')?.value;
+        const payload = token ? await verifyAdminToken(token) : null;
+
+        if (!payload) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
     }
 
     return NextResponse.next();
@@ -33,5 +44,5 @@ function redirectToLogin(request: NextRequest) {
 }
 
 export const config = {
-    matcher: ['/admin/:path*'],
+    matcher: ['/admin/:path*', '/api/:path*'],
 };

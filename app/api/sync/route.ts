@@ -380,7 +380,8 @@ export async function GET(request: NextRequest) {
             techniciansProcessed: Array.from(techniciansProcessed)
         });
     } catch (error) {
-        return NextResponse.json({ error: (error as Error).message }, { status: 500 });
+        console.error('Sync error:', error);
+        return NextResponse.json({ error: 'Sync failed' }, { status: 500 });
     }
 }
 

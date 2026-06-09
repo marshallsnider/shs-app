@@ -75,7 +75,7 @@ export async function setupTechPassword(techId: string, password: string) {
         return { success: false, error: 'Password already set. Use change password instead.' };
     }
 
-    const hash = await bcrypt.hash(password, 10);
+    const hash = await bcrypt.hash(password, 12);
     await prisma.technician.update({
         where: { id: techId },
         data: { passwordHash: hash },
@@ -112,7 +112,7 @@ export async function changeTechPassword(currentPassword: string, newPassword: s
         return { success: false, error: 'Current password is incorrect' };
     }
 
-    const hash = await bcrypt.hash(newPassword, 10);
+    const hash = await bcrypt.hash(newPassword, 12);
     await prisma.technician.update({
         where: { id: techId },
         data: { passwordHash: hash },

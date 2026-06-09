@@ -27,7 +27,7 @@ export async function createAdmin(formData: FormData) {
     const existing = await prisma.admin.findUnique({ where: { email } });
     if (existing) throw new Error("User with that email already exists.");
 
-    const passwordHash = await bcrypt.hash(password, 10);
+    const passwordHash = await bcrypt.hash(password, 12);
 
     const newAdmin = await prisma.admin.create({
         data: {
