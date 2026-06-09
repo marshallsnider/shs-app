@@ -1,15 +1,16 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { Bell, BellOff, Loader2 } from 'lucide-react';
 
-// Registers the service worker, asks the logged-in technician for
-// notification permission ONCE (no nagging on later loads), then creates
-// a Web Push subscription and syncs it to the server keyed by endpoint.
-// Works on Android Chrome and installed iOS PWAs via the standard
-// Web Push + VAPID flow. Rendered on the dashboard (post-login) with the
-// logged-in technician's id.
-
-const ASKED_FLAG = 'shs_push_asked';
+// Web push opt-in for estimate follow-up reminders.
+// Registers the service worker, then shows an explicit "Turn on reminders"
+// button so the technician opts in with a clear tap. Calling
+// Notification.requestPermission() directly inside the button's click
+// handler satisfies the iOS PWA user-gesture requirement reliably (the old
+// invisible "ask on first tap anywhere" approach was easy to miss/misfire).
+// On grant we create the PushManager subscription and POST it to the server.
+// Works on Android Chrome and installed iOS PWAs via standard Web Push + VAPID.
 
 // VAPID public key is exposed to the browser. Next.js only inlines env
 // vars prefixed with NEXT_PUBLIC_ into the client bundle, so this is the
@@ -52,56 +53,34 @@ async function subscribeAndSync(technicianId: string) {
     });
 }
 
+type Status = 'unsupported' | 'default' | 'granted' | 'denied' | 'working';
+
 export function PushNotifications({ technicianId }: { technicianId: string }) {
+    const [status, setStatus] = useState<Status>('default');
+
+    // Register the SW on mount and reflect the current permission state.
     useEffect(() => {
         if (typeof window === 'undefined') return;
-        if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
-            return; // Browser doesn't support web push.
-        }
 
         let cancelled = false;
-
-        // Asks for permission once, then subscribes. iOS PWAs require
-        // requestPermission() to run inside a user gesture, so this is wired
-        // to a one-time tap listener rather than fired on mount.
-        const askOnce = async () => {
-            if (cancelled) return;
-            if (localStorage.getItem(ASKED_FLAG)) return;
-            localStorage.setItem(ASKED_FLAG, '1');
-            try {
-                const result = await Notification.requestPermission();
-                if (!cancelled && result === 'granted') {
-                    await subscribeAndSync(technicianId);
-                }
-            } catch (err) {
-                console.warn('[push] permission request failed:', err);
-            }
-        };
-
-        const onFirstGesture = () => {
-            window.removeEventListener('pointerdown', onFirstGesture);
-            askOnce();
-        };
-
         (async () => {
+            if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
+                if (!cancelled) setStatus('unsupported');
+                return;
+            }
             try {
-                // Always register the SW on load.
                 await navigator.serviceWorker.register('/sw.js');
                 if (cancelled) return;
 
                 if (Notification.permission === 'granted') {
-                    // Already allowed — keep the server subscription fresh (no gesture needed).
+                    setStatus('granted');
+                    // Keep the server subscription fresh on each load.
                     await subscribeAndSync(technicianId);
-                    return;
+                } else if (Notification.permission === 'denied') {
+                    setStatus('denied');
+                } else {
+                    setStatus('default');
                 }
-
-                if (Notification.permission === 'denied') {
-                    return; // Respect the user's choice; don't nag.
-                }
-
-                // permission === 'default': ask exactly once, on the next tap.
-                if (localStorage.getItem(ASKED_FLAG)) return;
-                window.addEventListener('pointerdown', onFirstGesture, { once: true });
             } catch (err) {
                 console.warn('[push] setup failed:', err);
             }
@@ -109,9 +88,57 @@ export function PushNotifications({ technicianId }: { technicianId: string }) {
 
         return () => {
             cancelled = true;
-            window.removeEventListener('pointerdown', onFirstGesture);
         };
     }, [technicianId]);
 
-    return null;
+    // Triggered by the button tap — a real user gesture, which iOS requires.
+    const enable = async () => {
+        try {
+            setStatus('working');
+            const result = await Notification.requestPermission();
+            if (result === 'granted') {
+                await subscribeAndSync(technicianId);
+                setStatus('granted');
+            } else {
+                setStatus(result === 'denied' ? 'denied' : 'default');
+            }
+        } catch (err) {
+            console.warn('[push] permission request failed:', err);
+            setStatus('default');
+        }
+    };
+
+    if (status === 'unsupported' || status === 'granted') {
+        // Nothing to show: either unsupported, or already on.
+        return null;
+    }
+
+    if (status === 'denied') {
+        return (
+            <div className="mb-4 flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-400">
+                <BellOff className="h-4 w-4 shrink-0" />
+                <span>Reminders are blocked. Turn notifications on for this app in your phone&apos;s Settings.</span>
+            </div>
+        );
+    }
+
+    return (
+        <button
+            onClick={enable}
+            disabled={status === 'working'}
+            className="mb-4 flex w-full items-center justify-center gap-2 rounded-xl border border-primary/30 bg-primary/15 px-4 py-3 text-sm font-semibold text-white transition active:scale-[0.99] disabled:opacity-60"
+        >
+            {status === 'working' ? (
+                <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Turning on…
+                </>
+            ) : (
+                <>
+                    <Bell className="h-4 w-4" />
+                    Turn on follow-up reminders
+                </>
+            )}
+        </button>
+    );
 }
