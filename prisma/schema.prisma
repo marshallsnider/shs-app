@@ -29,10 +29,23 @@ model Technician {
   // Auditing
   lastModifiedBy String? // references Admin.id conceptually
 
-  performances   WeeklyPerformance[]
-  badges         TechnicianBadge[]
-  quizAttempts   QuizAttempt[]
-  phaseMasteries PhaseMastery[]
+  performances      WeeklyPerformance[]
+  badges            TechnicianBadge[]
+  quizAttempts      QuizAttempt[]
+  phaseMasteries    PhaseMastery[]
+  pushSubscriptions PushSubscription[]
+}
+
+// Web Push subscriptions for estimate follow-up reminders.
+// One row per browser/device endpoint; re-subscribing on the same
+// device replaces (upserts on endpoint) rather than duplicating.
+model PushSubscription {
+  id           String   @id @default(cuid())
+  technicianId String
+  technician   Technician @relation(fields: [technicianId], references: [id], onDelete: Cascade)
+  subscription Json // the full PushSubscription object from the browser
+  endpoint     String   @unique // dedupe so re-subscribing replaces, not duplicates
+  createdAt    DateTime @default(now())
 }
 
 model Badge {

@@ -6,7 +6,11 @@ import { verifyAdminToken } from './lib/auth';
 // - /api/admin-auth: the login endpoint itself (public by design).
 // - /api/sync: authenticates itself in-handler (Vercel cron Bearer OR admin cookie),
 //   so middleware must let it through or the nightly cron would be blocked.
-const PUBLIC_API_ROUTES = ['/api/admin-auth', '/api/sync'];
+// - /api/reminders: same deal — the push-reminder cron authenticates in-handler
+//   (Vercel cron Bearer OR admin cookie for ?force=1 testing).
+// - /api/push/subscribe: called by logged-in *technicians* (shs_tech_id cookie,
+//   not an admin token), so it validates that cookie itself in-handler.
+const PUBLIC_API_ROUTES = ['/api/admin-auth', '/api/sync', '/api/reminders', '/api/push/subscribe'];
 
 export async function middleware(request: NextRequest) {
     const { pathname } = request.nextUrl;
