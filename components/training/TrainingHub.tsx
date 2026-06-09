@@ -5,6 +5,7 @@ import { PhaseCard } from './PhaseCard';
 import { FullQuizCard } from './FullQuizCard';
 import { QuizFlow } from './QuizFlow';
 import { PHASES, type Phase } from '@/lib/training';
+import { ObjectionsSection } from './ObjectionsSection';
 
 interface PhaseInfo {
   phase: string;
@@ -18,6 +19,7 @@ interface TrainingHubProps {
   fullQuizAttempt: { score: number; total: number; passed: boolean } | null;
   techName: string;
   streak: number;
+  objectionPassed: string[];
 }
 
 export function TrainingHub({
@@ -25,6 +27,7 @@ export function TrainingHub({
   fullQuizAttempt,
   techName,
   streak,
+  objectionPassed,
 }: TrainingHubProps) {
   const [activeQuiz, setActiveQuiz] = useState<string | null>(null);
 
@@ -68,6 +71,11 @@ export function TrainingHub({
             : `${streak} week streak. Keep it going.`}
         </div>
       )}
+
+      {/* Objections (Sales) */}
+      <div className="pt-6 mt-6 border-t border-white/10">
+        <ObjectionsSection passedSlugs={objectionPassed} />
+      </div>
     </div>
   );
 }
