@@ -112,7 +112,7 @@ export default async function TrainingPage() {
           </div>
           <div>
             <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400">
-              PACE Training
+              Training
             </h1>
             <p className="text-sm text-slate-400">
               {tech.name} &middot; Week {weekNumber}
