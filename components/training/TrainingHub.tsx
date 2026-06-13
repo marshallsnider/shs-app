@@ -1,12 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import { Target, Shield } from 'lucide-react';
+import { Target, Shield, Users } from 'lucide-react';
 import { PhaseCard } from './PhaseCard';
 import { FullQuizCard } from './FullQuizCard';
 import { QuizFlow } from './QuizFlow';
 import { PHASES, type Phase } from '@/lib/training';
 import { ObjectionsSection } from './ObjectionsSection';
+import { DiscSection } from './DiscSection';
 import { CollapsibleSection } from './CollapsibleSection';
 
 interface PhaseInfo {
@@ -22,6 +23,7 @@ interface TrainingHubProps {
   techName: string;
   streak: number;
   objectionPassed: string[];
+  discPassed: boolean;
 }
 
 export function TrainingHub({
@@ -30,6 +32,7 @@ export function TrainingHub({
   techName,
   streak,
   objectionPassed,
+  discPassed,
 }: TrainingHubProps) {
   const [activeQuiz, setActiveQuiz] = useState<string | null>(null);
 
@@ -81,6 +84,15 @@ export function TrainingHub({
         summary="6 objections · 3 reps each"
       >
         <ObjectionsSection passedSlugs={objectionPassed} hideHeader />
+      </CollapsibleSection>
+
+      {/* DISC (collapsible) */}
+      <CollapsibleSection
+        icon={<Users className="w-5 h-5" />}
+        title="DISC"
+        summary="4 personality types · 12 scenarios"
+      >
+        <DiscSection modulePassed={discPassed} hideHeader />
       </CollapsibleSection>
 
       {/* Streak */}

@@ -358,3 +358,121 @@ export async function submitObjectionQuiz(
   };
 }
 
+// --- DISC (personality types) ---
+// DISC questions live under phase = "DISC" with topic 'NN-q1'/'NN-q2' so the 12
+// scenarios stay paired and ordered. Like objections, they never appear in the
+// PACE phase or FULL quiz pools. The whole module is one 24-question check,
+// recorded as a single attempt under phase 'DISC:module'.
+//
+// The explanation column for DISC questions holds a JSON map of per-option
+// feedback lines (the instant feedback the tech sees after each answer).
+
+const DISC_XP = 50;
+const DISC_PHASE_KEY = 'DISC:module';
+
+function discFeedbackFor(explanation: string, selected: string): string {
+  try {
+    const map = JSON.parse(explanation) as Record<string, string>;
+    return map[selected] ?? explanation;
+  } catch {
+    return explanation;
+  }
+}
+
+export async function startDiscQuiz(): Promise<
+  { questions: ClientQuestion[] } | { error: string }
+> {
+  const techId = await getTechId();
+  if (!techId) return { error: 'Not logged in' };
+
+  const discQs = (await prisma.quizQuestion.findMany({
+    where: { phase: 'DISC' },
+    orderBy: { topic: 'asc' },
+  })) as QuizQuestionData[];
+
+  if (discQs.length === 0) {
+    return { error: 'No DISC questions found yet' };
+  }
+
+  return { questions: discQs.map(stripAnswers) };
+}
+
+export interface DiscAnswerCheck {
+  correct: string;
+  isCorrect: boolean;
+  feedback: string;
+}
+
+// Per-question check powering instant feedback. The correct answer is only
+// revealed for the single question just answered, after the tech has locked in.
+export async function checkDiscAnswer(
+  questionId: string,
+  selected: string
+): Promise<DiscAnswerCheck | { error: string }> {
+  const techId = await getTechId();
+  if (!techId) return { error: 'Not logged in' };
+
+  const q = await prisma.quizQuestion.findUnique({ where: { id: questionId } });
+  if (!q || q.phase !== 'DISC') return { error: 'Unknown question' };
+
+  return {
+    correct: q.correct,
+    isCorrect: selected === q.correct,
+    feedback: discFeedbackFor(q.explanation, selected),
+  };
+}
+
+export type DiscResult = ObjectionResult;
+
+export async function submitDiscQuiz(
+  answers: { questionId: string; selected: string }[]
+): Promise<DiscResult | { error: string }> {
+  const techId = await getTechId();
+  if (!techId) return { error: 'Not logged in' };
+
+  const { year, weekNumber } = getISOWeek(new Date());
+
+  const questionIds = answers.map((a) => a.questionId);
+  const questions = (await prisma.quizQuestion.findMany({
+    where: { id: { in: questionIds }, phase: 'DISC' },
+  })) as QuizQuestionData[];
+
+  const result = gradeQuiz(answers, questions, false);
+  // Replace the raw JSON feedback map with the line for the selected option
+  const details = result.details.map((d) => ({
+    ...d,
+    explanation: discFeedbackFor(d.explanation, d.selected),
+  }));
+
+  // Only award XP the first time DISC is passed (ever), same as objections.
+  const priorPass = await prisma.quizAttempt.findFirst({
+    where: { technicianId: techId, phase: DISC_PHASE_KEY, passed: true },
+  });
+  const xpToAward = result.passed && !priorPass ? DISC_XP : 0;
+
+  await prisma.quizAttempt.create({
+    data: {
+      technicianId: techId,
+      year,
+      weekNumber,
+      phase: DISC_PHASE_KEY,
+      score: result.score,
+      total: result.total,
+      xpEarned: xpToAward,
+      passed: result.passed,
+      answersJson: JSON.stringify(details),
+    },
+  });
+
+  revalidatePath('/training');
+  revalidatePath('/');
+
+  return {
+    score: result.score,
+    total: result.total,
+    passed: result.passed,
+    xpEarned: xpToAward,
+    details,
+  };
+}
+

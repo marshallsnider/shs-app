@@ -90,6 +90,11 @@ export default async function TrainingPage() {
     new Set(objectionAttempts.map((a) => a.phase.split(':')[1]).filter(Boolean))
   );
 
+  // DISC: has this tech ever passed the module?
+  const discAttempt = await prisma.quizAttempt.findFirst({
+    where: { technicianId: techId, passed: true, phase: 'DISC:module' },
+  });
+
   return (
     <main className="min-h-screen px-4 py-6 pb-20 max-w-md mx-auto relative overflow-hidden">
       {/* Background Decor */}
@@ -136,6 +141,7 @@ export default async function TrainingPage() {
         techName={tech.name}
         streak={tech.currentStreak}
         objectionPassed={objectionPassed}
+        discPassed={!!discAttempt}
       />
 
       {/* Bottom Nav */}

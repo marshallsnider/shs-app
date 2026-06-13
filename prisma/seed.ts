@@ -399,6 +399,8 @@ const OBJECTION_QUESTIONS = [
     { phase: 'OBJECTION', topic: 'estimate', question: `What is the one rule that defines the estimate objection?`, optionA: `Always get a signature before leaving`, optionB: `Never end on the estimate; always end on a follow-up you own`, optionC: `Never give an estimate in writing`, optionD: `Always offer a discount to close`, correct: 'B', explanation: `A scheduled follow-up you control is what makes you different from every contractor who hands over a number and waits.` },
 ];
 
+import { DISC_QUESTIONS } from './disc-questions';
+
 async function main() {
     console.log('Seeding badges...');
     for (const b of BADGES) {
@@ -446,6 +448,18 @@ async function main() {
         console.log(`Seeded ${OBJECTION_QUESTIONS.length} objection questions.`);
     } else {
         console.log(`Objection questions already exist (${objCount}), skipping.`);
+    }
+
+    // Seed DISC questions, additive only: INSERT when none exist, never delete/reset
+    console.log('Seeding DISC questions...');
+    const discCount = await prisma.quizQuestion.count({ where: { phase: 'DISC' } });
+    if (discCount === 0) {
+        await prisma.quizQuestion.createMany({
+            data: DISC_QUESTIONS,
+        });
+        console.log(`Seeded ${DISC_QUESTIONS.length} DISC questions.`);
+    } else {
+        console.log(`DISC questions already exist (${discCount}), skipping.`);
     }
 
     // Seed phase mastery rows for all active technicians
