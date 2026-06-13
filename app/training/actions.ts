@@ -394,7 +394,29 @@ export async function startDiscQuiz(): Promise<
     return { error: 'No DISC questions found yet' };
   }
 
-  return { questions: discQs.map(stripAnswers) };
+  // Pair the questions into scenarios and shuffle the scenarios so the
+  // personality types no longer arrive grouped (all D, then all I, then S, then
+  // C) — which let a tech pattern-match the answer without reading. The rows
+  // come back topic-asc (NN-q1, NN-q2, ...), so each scenario is two adjacent
+  // rows and the pair stays ordered: q1 "what type?" before q2 "make the offer".
+  const groups: QuizQuestionData[][] = [];
+  for (let i = 0; i < discQs.length; i += 2) {
+    groups.push(discQs.slice(i, i + 2));
+  }
+
+  for (let i = groups.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [groups[i], groups[j]] = [groups[j], groups[i]];
+  }
+  // Strip any leading "Scenario N — " baked into older seeded rows: with the
+  // scenarios shuffled, that fixed number would clash with the positional
+  // "Scenario X of 12" the UI shows. Fresh seeds have no prefix, so this no-ops.
+  const selected = groups.flat().map((q) => ({
+    ...q,
+    question: q.question.replace(/^Scenario\s+\d+\s*[—-]\s*/, ''),
+  }));
+
+  return { questions: selected.map(stripAnswers) };
 }
 
 export interface DiscAnswerCheck {

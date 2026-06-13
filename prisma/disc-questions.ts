@@ -19,19 +19,22 @@ function discTypeFb(correct: 'A' | 'B' | 'C' | 'D', right: string, wrong: string
 const DISC_Q1 = 'What personality type is this?';
 const DISC_Q2 = "What's the best way to make your offer to this customer?";
 
+// No "Scenario N" numbering baked into the text: the practice shuffles the
+// scenarios, so a fixed number would mislabel them and re-leak the original
+// D/I/S/C grouping. The UI shows the positional "Scenario X of 12" header.
 const DISC_SCENARIOS = [
-    `Scenario 1 — Panel replacement. The door swings open before you finish knocking. Firm handshake, strong eye contact. "Appreciate you coming. How long is this gonna take? The panel keeps tripping — just tell me what it needs so it stops." He keeps checking his watch.`,
-    `Scenario 2 — Recurring breaker trips. She meets you at the door, all business. "What's the bottom line to stop this breaker from tripping? Skip the backstory — is it worth fixing or do I just replace the panel?" She cuts you off when you start explaining the circuit history.`,
-    `Scenario 3 — EV charger install. "If the panel can handle it, do it. If not, tell me what it takes. Can you get the charger in this week or not?" He barely looks up from his phone, wants the job scoped and you gone.`,
-    `Scenario 4 — Recessed lighting upgrade. Big smile, "Come on in! You want a water or anything?" She's chatty, asks how your day's going, tells you about the kitchen remodel she's planning and how she wants the whole place to glow. Lively, colorful house.`,
-    `Scenario 5 — Outlet & USB modernization. He laughs about the old two-prong outlets — "Straight out of the seventies, right?" — and keeps steering the conversation to his home theater setup and the game last night. Friendly, animated, easily distracted.`,
-    `Scenario 6 — Whole-home surge protection. "Oh man, electricity scares me!" — said with a grin. She's talkative, jokes about her "ancient" wiring, excited about finally getting the place protected and modern. Wants it to feel good, not technical.`,
-    `Scenario 7 — Aging panel, safety concern. Calm and polite, a little reserved. Warms up as you talk. "I just want to make sure this won't become a problem. We've had enough surprises in this house — I want something I don't have to worry about." Comfortable, tidy, modest home.`,
-    `Scenario 8 — GFCI / childproofing. Soft-spoken, thoughtful. "Is this safe for the kids? I don't want to worry about someone getting shocked near the bathroom or kitchen outlets." Asks about the warranty and whether you stand behind the work.`,
-    `Scenario 9 — Panel upgrade, hesitant. Quiet, careful. "I want to do the right thing, I just don't want to rush into something this expensive." Asks about long-term safety and whether the new panel will last. Nervous about making the wrong call.`,
-    `Scenario 10 — Diagnostic / flickering lights. Reserved, precise. "Before you recommend anything, can you show me the actual readings? I'd like to see what the voltage is doing at the panel." Tidy, minimalist home. Asks careful "what if" questions.`,
-    `Scenario 11 — Aluminum wiring concern. "I read this house has aluminum wiring and I need to understand exactly what the risk is before I spend money on it." Methodical, a little skeptical. Wants the cause documented and the cost justified.`,
-    `Scenario 12 — Code compliance / breaker. Polite but cautious. "Does this breaker meet code? Is there documentation? I'd want the manufacturer warranty in writing." Reads everything carefully before deciding.`,
+    `Panel replacement. The door swings open before you finish knocking. Firm handshake, strong eye contact. "Appreciate you coming. How long is this gonna take? The panel keeps tripping — just tell me what it needs so it stops." He keeps checking his watch.`,
+    `Recurring breaker trips. She meets you at the door, all business. "What's the bottom line to stop this breaker from tripping? Skip the backstory — is it worth fixing or do I just replace the panel?" She cuts you off when you start explaining the circuit history.`,
+    `EV charger install. "If the panel can handle it, do it. If not, tell me what it takes. Can you get the charger in this week or not?" He barely looks up from his phone, wants the job scoped and you gone.`,
+    `Recessed lighting upgrade. Big smile, "Come on in! You want a water or anything?" She's chatty, asks how your day's going, tells you about the kitchen remodel she's planning and how she wants the whole place to glow. Lively, colorful house.`,
+    `Outlet & USB modernization. He laughs about the old two-prong outlets — "Straight out of the seventies, right?" — and keeps steering the conversation to his home theater setup and the game last night. Friendly, animated, easily distracted.`,
+    `Whole-home surge protection. "Oh man, electricity scares me!" — said with a grin. She's talkative, jokes about her "ancient" wiring, excited about finally getting the place protected and modern. Wants it to feel good, not technical.`,
+    `Aging panel, safety concern. Calm and polite, a little reserved. Warms up as you talk. "I just want to make sure this won't become a problem. We've had enough surprises in this house — I want something I don't have to worry about." Comfortable, tidy, modest home.`,
+    `GFCI / childproofing. Soft-spoken, thoughtful. "Is this safe for the kids? I don't want to worry about someone getting shocked near the bathroom or kitchen outlets." Asks about the warranty and whether you stand behind the work.`,
+    `Panel upgrade, hesitant. Quiet, careful. "I want to do the right thing, I just don't want to rush into something this expensive." Asks about long-term safety and whether the new panel will last. Nervous about making the wrong call.`,
+    `Diagnostic / flickering lights. Reserved, precise. "Before you recommend anything, can you show me the actual readings? I'd like to see what the voltage is doing at the panel." Tidy, minimalist home. Asks careful "what if" questions.`,
+    `Aluminum wiring concern. "I read this house has aluminum wiring and I need to understand exactly what the risk is before I spend money on it." Methodical, a little skeptical. Wants the cause documented and the cost justified.`,
+    `Code compliance / breaker. Polite but cautious. "Does this breaker meet code? Is there documentation? I'd want the manufacturer warranty in writing." Reads everything carefully before deciding.`,
 ];
 
 export const DISC_QUESTIONS = [
